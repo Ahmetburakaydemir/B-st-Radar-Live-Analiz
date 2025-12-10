@@ -6,7 +6,7 @@ from groq import Groq
 # --- SAYFA AYARLARI ---
 st.set_page_config(
     page_title="BIST Radar AI",
-    page_icon="🎓", # İkonu mezuniyet şapkası yaptık (Eğitim odaklı)
+    page_icon="🎓",
     layout="wide"
 )
 
@@ -26,42 +26,48 @@ def rsi_hesapla(data, window=14):
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
-# Cache ayarı (Hafıza)
-@st.cache_data(ttl=3600, show_spinner=False)
+# Cache ayarı (Hafızayı temizleyelim ki yeni prompt devreye girsin)
+@st.cache_data(ttl=0, show_spinner=False)
 def yapay_zeka_yorumu_al(sembol, fiyat, fk, pd_dd, rsi, degisim):
-    """Groq (Llama 3.3) - EĞİTİCİ MOD"""
+    """Groq (Llama 3.3) - %100 TÜRKÇE MENTOR MODU"""
     try:
-        # --- GURU DOKUNUŞU: PROMPT MÜHENDİSLİĞİ ---
+        # --- GURU DOKUNUŞU: SIKI YÖNETİM PROMPT ---
         prompt = f"""
-        Sen Borsa İstanbul konusunda uzman, aynı zamanda finansal okuryazarlığı artırmayı hedefleyen sabırlı bir mentorsun.
-        Aşağıdaki verilere göre {sembol} hissesi için yatırımcıya yol gösteren detaylı bir analiz yaz.
+        Rolün: Sen Borsa İstanbul konusunda uzman, Türkçe'yi mükemmel ve akıcı kullanan, sabırlı bir finans öğretmenisin.
+        Görev: Aşağıdaki verilere göre {sembol} hissesini analiz et.
 
         VERİLER:
         - Hisse: {sembol}
         - Fiyat: {fiyat} TL
         - Günlük Değişim: %{degisim:.2f}
-        - F/K Oranı: {fk} (Fiyat/Kazanç)
-        - PD/DD Oranı: {pd_dd} (Piyasa Değeri/Defter Değeri)
-        - RSI: {rsi:.1f} (Göreceli Güç Endeksi)
+        - F/K Oranı: {fk}
+        - PD/DD Oranı: {pd_dd}
+        - RSI: {rsi:.1f}
 
-        KURALLAR VE FORMAT:
-        Analizini şu 3 başlık altında topla ve Türkçe yaz:
+        ÇOK ÖNEMLİ KURALLAR (BUNLARA KESİN UY):
+        1. DİL: Sadece ve sadece TÜRKÇE yaz. Asla İngilizce kelime (approximately, slightly, doing vs.) kullanma.
+        2. KARAKTER: Asla Çince, Japonca veya bozuk karakter kullanma.
+        3. ÜSLUP: Robotik çeviri gibi değil, doğal bir İstanbul Türkçesi ile konuş. Akıcı ve anlaşılır ol.
+        4. YASAL: Asla "Yatırım Tavsiyesidir" deme.
 
-        1. 📊 GENEL GÖRÜNÜM:
-           Hissenin şu anki durumu nedir? Yükselişte mi düşüşte mi?
+        ANALİZ FORMATI:
+        
+        1. 📊 GENEL DURUM:
+           Hissenin bugünkü hareketi ne anlatıyor? (Kısa özet)
 
-        2. 💡 YATIRIMCI İÇİN "BU NE DEMEK?":
-           Burada F/K, PD/DD ve RSI değerlerinin bu hisse özelinde ne anlama geldiğini bir öğretmene gibi anlat. 
-           Örneğin: "F/K oranının {fk} olması, şirketin kendini X yılda amorti edeceği anlamına gelir, bu sektör ortalamasına göre şöyledir..." gibi eğitici açıklamalar yap.
-           Yatırımcı bu rakama bakınca ne anlamalı, sade bir dille açıkla.
+        2. 💡 YATIRIMCI İÇİN FİNANSAL OKURYAZARLIK:
+           Bu F/K ve PD/DD değerleri ne anlama geliyor?
+           Örneğin: "F/K oranının {fk} olması, şirketin kendini amorti etme süresinin makul olduğunu gösterir..." gibi öğretici konuş.
+           Rakamları boğma, mantığını anlat.
 
-        3. ⚖️ RİSK VE FIRSATLAR:
-           Teknik ve temel verilere göre yatırımcı neye dikkat etmeli? (Yatırım tavsiyesi vermeden uyar).
+        3. ⚖️ RİSK VE FIRSAT PENCERESİ:
+           RSI değerine ({rsi:.1f}) bakarak hisse pahalı mı ucuz mu? Yatırımcı neye dikkat etmeli?
         """
         
         chat_completion = client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
             model="llama-3.3-70b-versatile", 
+            temperature=0.5, # Yaratıcılığı biraz kıstık ki saçmalamasın, daha tutarlı olsun.
         )
         return chat_completion.choices[0].message.content
     except Exception as e:
@@ -75,7 +81,7 @@ st.sidebar.header("🔍 Hisse Seçimi")
 sembol = st.sidebar.text_input("Hisse Kodu", value="THYAO").upper()
 if not sembol.endswith(".IS"): sembol += ".IS"
 
-st.sidebar.info("Mod: Eğitici Analiz (Mentor) 💡")
+st.sidebar.info("Mod: %100 Türkçe Mentor 🇹🇷")
 analyze_button = st.sidebar.button("Analiz Et (AI) ✨")
 
 if analyze_button:
