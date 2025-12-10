@@ -2,6 +2,7 @@ import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
 from groq import Groq
+import time
 
 # --- SAYFA AYARLARI ---
 st.set_page_config(
@@ -26,8 +27,12 @@ def rsi_hesapla(data, window=14):
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
-def yapay_zeka_yorumu_al(sembol, fiyat, fk, pd_dd, rsi, degisim):
-    """Groq (Llama-3) modelini kullanır - Şimşek Hızında"""
+# --- SİHİRLİ DOKUNUŞ: CACHING ---
+# Bu fonksiyonun sonucu 1 saat (3600 sn) boyunca hafızada tutulur.
+# Aynı hisse için tekrar tekrar API'ye gitmez, kotanı korur.
+@st.cache_data(ttl=3600, show_spinner=False)
+def yapay_zeka_yorumu_al_cached(sembol, fiyat, fk, pd_dd, rsi, degisim):
+    """Groq (Llama-3) modelini kullanır - Önbellek Korumalı"""
     try:
         prompt = f"""
         Sen Borsa İstanbul konusunda uzmanlaşmış kıdemli bir analistsin.
@@ -49,17 +54,13 @@ def yapay_zeka_yorumu_al(sembol, fiyat, fk, pd_dd, rsi, degisim):
         """
         
         chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ],
-            model="llama3-8b-8192", # Meta'nın çok hızlı ve zeki modeli
+            messages=[{"role": "user", "content": prompt}],
+            model="llama3-8b-8192",
         )
         return chat_completion.choices[0].message.content
     except Exception as e:
-        return f"AI Bağlantı Hatası: {e}"
+        # Eğer hata verirse None döndür ki arayüzde anlayalım
+        return None
 
 # --- 3. ARAYÜZ ---
 st.title("⚡ BIST Radar: Hızlı AI Analiz")
@@ -69,7 +70,7 @@ st.sidebar.header("🔍 Hisse Seçimi")
 sembol = st.sidebar.text_input("Hisse Kodu", value="THYAO").upper()
 if not sembol.endswith(".IS"): sembol += ".IS"
 
-st.sidebar.info("Motor: Groq (Llama-3) 🚀")
+st.sidebar.info("Motor: Groq (Llama-3) + Cache 🛡️")
 analyze_button = st.sidebar.button("Analiz Et (AI) ✨")
 
 if analyze_button:
@@ -90,7 +91,7 @@ if analyze_button:
                 onceki_kapanis = hist['Close'].iloc[-2]
                 degisim = ((guncel_fiyat - onceki_kapanis) / onceki_kapanis) * 100
 
-                # Metrikler
+                # --- 1. METRİKLER (Bunlar API harcamaz, hemen göster) ---
                 st.subheader(f"🏢 {bilgi.get('longName', sembol)}")
                 c1, c2, c3, c4 = st.columns(4)
                 c1.metric("Fiyat", f"{guncel_fiyat} ₺", f"%{degisim:.2f}")
@@ -101,14 +102,21 @@ if analyze_button:
                 
                 st.markdown("---")
 
-                # AI Raporu
+                # --- 2. AI RAPORU (HATA YÖNETİMİ) ---
                 st.subheader("🤖 AI Analist Görüşü")
-                ai_raporu = yapay_zeka_yorumu_al(sembol, guncel_fiyat, fk, pd_dd, son_rsi, degisim)
-                st.info(ai_raporu)
                 
+                # Fonksiyonu çağırıyoruz (Cache devrede)
+                ai_raporu = yapay_zeka_yorumu_al_cached(sembol, guncel_fiyat, fk, pd_dd, son_rsi, degisim)
+                
+                if ai_raporu:
+                    st.info(ai_raporu)
+                else:
+                    # AI çalışmazsa bile sistemi çökertme, sadece uyarı ver
+                    st.warning("⚠️ Yapay Zeka şu an çok yoğun (Rate Limit). Lütfen 1 dakika sonra tekrar dene. Ancak aşağıdaki grafikler günceldir! 👇")
+
                 st.markdown("---")
 
-                # Grafik
+                # --- 3. GRAFİK (AI çalışmasa bile burası çalışır!) ---
                 st.subheader("Teknik Görünüm")
                 fig = go.Figure()
                 fig.add_trace(go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'],
