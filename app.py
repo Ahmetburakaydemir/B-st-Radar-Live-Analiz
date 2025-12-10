@@ -1,104 +1,113 @@
 import streamlit as st
 import yfinance as yf
-import pandas as pd
-import plotly.graph_objects as go # Yeni Görselleştirme Kütüphanemiz
+import plotly.graph_objects as go
+import google.generativeai as genai
 
 # --- SAYFA AYARLARI ---
 st.set_page_config(
-    page_title="BIST Radar PRO",
-    page_icon="📡",
+    page_title="BIST Radar AI",
+    page_icon="🧠",
     layout="wide"
 )
 
-# --- FONKSİYONLAR ---
+# --- 1. API KURULUMU (KASADAN ANAHTARI AL) ---
+try:
+    api_key = st.secrets["GOOGLE_API_KEY"]
+    genai.configure(api_key=api_key)
+except Exception:
+    st.error("⚠️ API Anahtarı bulunamadı! Streamlit Secrets ayarlarını kontrol et.")
+    st.stop()
+
+# --- 2. TEKNİK FONKSİYONLAR ---
 def rsi_hesapla(data, window=14):
     delta = data['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
     rs = gain / loss
-    rsi = 100 - (100 / (1 + rs))
-    return rsi
+    return 100 - (100 / (1 + rs))
 
-# --- BAŞLIK ---
-st.title("📡 BIST Radar: Profesyonel Analiz")
+def yapay_zeka_yorumu_al(sembol, fiyat, fk, pd_dd, rsi, degisim):
+    """Google Gemini'ye verileri gönderip yorum alır"""
+    model = genai.GenerativeModel('gemini-1.5-flash') # Hızlı ve ekonomik model
+    
+    prompt = f"""
+    Sen kıdemli bir Borsa İstanbul analistisin. Aşağıdaki verilere göre {sembol} hissesi için 
+    kısa, vurucu ve profesyonel bir yatırımcı notu yaz. 
+    Yatırım tavsiyesi verme (AL/SAT deme), sadece risk ve fırsatları vurgula.
+    Maddeler halinde yazma, akıcı bir paragraf olsun.
+
+    VERİLER:
+    - Hisse: {sembol}
+    - Fiyat: {fiyat} TL
+    - Günlük Değişim: %{degisim:.2f}
+    - F/K Oranı: {fk} (Sektör ortalaması 10 kabul et)
+    - PD/DD Oranı: {pd_dd}
+    - RSI (14): {rsi:.1f} (30 altı aşırı satım, 70 üstü aşırı alım)
+    """
+    
+    response = model.generate_content(prompt)
+    return response.text
+
+# --- 3. ARAYÜZ (FRONTEND) ---
+st.title("🧠 BIST Radar: Yapay Zeka Destekli Analiz")
 st.markdown("---")
 
-# --- YAN MENÜ ---
-st.sidebar.header("🔍 Hisse Arama")
+st.sidebar.header("🔍 Hisse Seçimi")
 sembol = st.sidebar.text_input("Hisse Kodu", value="THYAO").upper()
+if not sembol.endswith(".IS"): sembol += ".IS"
 
-if not sembol.endswith(".IS"):
-    arama_kodu = sembol + ".IS"
-else:
-    arama_kodu = sembol
+analyze_button = st.sidebar.button("Analiz Et (AI) ✨")
 
-periyot = st.sidebar.selectbox("Zaman Aralığı", ["3mo", "6mo", "1y", "2y"], index=1)
-analyze_button = st.sidebar.button("Analiz Et 🚀")
-
-# --- ANA PROGRAM ---
 if analyze_button:
     try:
-        with st.spinner('Veriler Bloomberg terminali kalitesinde işleniyor...'):
+        with st.spinner(f'{sembol} taranıyor ve Yapay Zeka raporu hazırlanıyor...'):
             # Veri Çekme
-            hisse = yf.Ticker(arama_kodu)
+            hisse = yf.Ticker(sembol)
             bilgi = hisse.info
-            gecmis_veri = hisse.history(period=periyot)
+            hist = hisse.history(period="1y")
             
             if 'currentPrice' not in bilgi:
-                st.error(f"❌ Hata: '{sembol}' verisi çekilemedi.")
+                st.error("Veri çekilemedi. Hisse kodunu kontrol et.")
             else:
-                # RSI Hesapla
-                gecmis_veri['RSI'] = rsi_hesapla(gecmis_veri)
-                son_rsi = gecmis_veri['RSI'].iloc[-1]
+                # Hesaplamalar
+                guncel_fiyat = bilgi.get('currentPrice')
+                fk = bilgi.get('trailingPE', 0)
+                pd_dd = bilgi.get('priceToBook', 0)
+                hist['RSI'] = rsi_hesapla(hist)
+                son_rsi = hist['RSI'].iloc[-1]
                 
-                # --- ÜST BİLGİ KARTLARI ---
+                # Günlük değişim yüzdesi
+                onceki_kapanis = hist['Close'].iloc[-2]
+                degisim = ((guncel_fiyat - onceki_kapanis) / onceki_kapanis) * 100
+
+                # --- METRİKLER ---
                 st.subheader(f"🏢 {bilgi.get('longName', sembol)}")
-                col1, col2, col3, col4 = st.columns(4)
-                
-                col1.metric("Fiyat", f"{bilgi.get('currentPrice')} ₺")
-                col2.metric("F/K", f"{bilgi.get('trailingPE', 0):.2f}")
-                col3.metric("PD/DD", f"{bilgi.get('priceToBook', 0):.2f}")
-                
-                rsi_renk = "inverse" if son_rsi > 70 else ("off" if son_rsi < 30 else "normal")
-                col4.metric("RSI (Momentum)", f"{son_rsi:.1f}", delta_color=rsi_renk)
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("Fiyat", f"{guncel_fiyat} ₺", f"%{degisim:.2f}")
+                c2.metric("F/K", f"{fk:.2f}")
+                c3.metric("PD/DD", f"{pd_dd:.2f}")
+                c4.metric("RSI", f"{son_rsi:.1f}")
                 
                 st.markdown("---")
 
-                # --- PROFESYONEL GRAFİK (MUM GRAFİĞİ) ---
-                st.subheader(f"📈 {sembol} Fiyat Hareketleri (Candlestick)")
+                # --- YAPAY ZEKA RAPORU (BURASI YENİ!) ---
+                st.subheader("🤖 AI Analist Görüşü")
                 
-                # Plotly ile Mum Grafiği Çizimi
+                # Gemini'ye Bağlanıyoruz
+                ai_raporu = yapay_zeka_yorumu_al(sembol, guncel_fiyat, fk, pd_dd, son_rsi, degisim)
+                
+                # Raporu havalı bir kutuda gösterelim
+                st.info(ai_raporu)
+                
+                st.markdown("---")
+
+                # --- GRAFİK ---
+                st.subheader("Teknik Görünüm")
                 fig = go.Figure()
-                
-                # Mum Çubukları (Kırmızı/Yeşil)
-                fig.add_trace(go.Candlestick(
-                    x=gecmis_veri.index,
-                    open=gecmis_veri['Open'],
-                    high=gecmis_veri['High'],
-                    low=gecmis_veri['Low'],
-                    close=gecmis_veri['Close'],
-                    name='Fiyat'
-                ))
-                
-                # Grafiği Güzelleştirme
-                fig.update_layout(
-                    height=500,
-                    title=f'{sembol} Teknik Analiz Grafiği',
-                    yaxis_title='Fiyat (TL)',
-                    xaxis_rangeslider_visible=False, # Alttaki kaydırma çubuğunu gizle
-                    template="plotly_dark" # Karanlık mod (Daha havalı)
-                )
-                
-                # Grafiği Ekrana Bas
+                fig.add_trace(go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'],
+                                             low=hist['Low'], close=hist['Close'], name='Fiyat'))
+                fig.update_layout(height=400, template="plotly_dark", title=f"{sembol} Mum Grafiği")
                 st.plotly_chart(fig, use_container_width=True)
 
-                # --- RSI GRAFİĞİ (ALTTA) ---
-                st.info("💡 İPUCU: Grafiğin üzerine gelerek zoom yapabilir, değerleri görebilirsin.")
-                
-                # RSI için basit çizgi grafik devam etsin
-                st.subheader("RSI Göstergesi")
-                st.line_chart(gecmis_veri['RSI'])
-
     except Exception as e:
-
-        st.error(f"Beklenmedik bir hata: {e}")
+        st.error(f"Bir hata oluştu: {e}")
