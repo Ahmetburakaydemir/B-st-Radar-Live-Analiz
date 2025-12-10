@@ -6,7 +6,7 @@ from groq import Groq
 # --- SAYFA AYARLARI ---
 st.set_page_config(
     page_title="BIST Radar AI",
-    page_icon="⚡",
+    page_icon="🎓", # İkonu mezuniyet şapkası yaptık (Eğitim odaklı)
     layout="wide"
 )
 
@@ -26,31 +26,39 @@ def rsi_hesapla(data, window=14):
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
-# Hafızayı aktif ediyoruz (1 saatlik)
+# Cache ayarı (Hafıza)
 @st.cache_data(ttl=3600, show_spinner=False)
 def yapay_zeka_yorumu_al(sembol, fiyat, fk, pd_dd, rsi, degisim):
-    """Groq (Llama 3.3) modelini kullanır - En Güncel Model"""
+    """Groq (Llama 3.3) - EĞİTİCİ MOD"""
     try:
+        # --- GURU DOKUNUŞU: PROMPT MÜHENDİSLİĞİ ---
         prompt = f"""
-        Sen Borsa İstanbul konusunda uzmanlaşmış kıdemli bir analistsin.
-        Aşağıdaki verilere göre {sembol} hissesi için yatırımcıya yönelik 
-        kısa, profesyonel, risk ve fırsatları içeren bir analiz paragrafı yaz.
-        
-        Kurallar:
-        1. Asla "Yatırım Tavsiyesidir" veya "AL/SAT" deme.
-        2. Finansal okuryazarlık dili kullan.
-        3. Akıcı bir Türkçe ile yaz.
-        
+        Sen Borsa İstanbul konusunda uzman, aynı zamanda finansal okuryazarlığı artırmayı hedefleyen sabırlı bir mentorsun.
+        Aşağıdaki verilere göre {sembol} hissesi için yatırımcıya yol gösteren detaylı bir analiz yaz.
+
         VERİLER:
         - Hisse: {sembol}
         - Fiyat: {fiyat} TL
-        - Değişim: %{degisim:.2f}
-        - F/K: {fk} 
-        - PD/DD: {pd_dd}
-        - RSI: {rsi:.1f}
+        - Günlük Değişim: %{degisim:.2f}
+        - F/K Oranı: {fk} (Fiyat/Kazanç)
+        - PD/DD Oranı: {pd_dd} (Piyasa Değeri/Defter Değeri)
+        - RSI: {rsi:.1f} (Göreceli Güç Endeksi)
+
+        KURALLAR VE FORMAT:
+        Analizini şu 3 başlık altında topla ve Türkçe yaz:
+
+        1. 📊 GENEL GÖRÜNÜM:
+           Hissenin şu anki durumu nedir? Yükselişte mi düşüşte mi?
+
+        2. 💡 YATIRIMCI İÇİN "BU NE DEMEK?":
+           Burada F/K, PD/DD ve RSI değerlerinin bu hisse özelinde ne anlama geldiğini bir öğretmene gibi anlat. 
+           Örneğin: "F/K oranının {fk} olması, şirketin kendini X yılda amorti edeceği anlamına gelir, bu sektör ortalamasına göre şöyledir..." gibi eğitici açıklamalar yap.
+           Yatırımcı bu rakama bakınca ne anlamalı, sade bir dille açıkla.
+
+        3. ⚖️ RİSK VE FIRSATLAR:
+           Teknik ve temel verilere göre yatırımcı neye dikkat etmeli? (Yatırım tavsiyesi vermeden uyar).
         """
         
-        # MODEL GÜNCELLEMESİ: Llama 3.3 (En Yeni)
         chat_completion = client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
             model="llama-3.3-70b-versatile", 
@@ -60,19 +68,19 @@ def yapay_zeka_yorumu_al(sembol, fiyat, fk, pd_dd, rsi, degisim):
         return f"HATA: {str(e)}"
 
 # --- 3. ARAYÜZ ---
-st.title("⚡ BIST Radar: Yapay Zeka Destekli Analiz")
+st.title("🎓 BIST Radar: Finansal Mentor")
 st.markdown("---")
 
 st.sidebar.header("🔍 Hisse Seçimi")
 sembol = st.sidebar.text_input("Hisse Kodu", value="THYAO").upper()
 if not sembol.endswith(".IS"): sembol += ".IS"
 
-st.sidebar.info("Motor: Llama 3.3 (Versatile) 🚀")
+st.sidebar.info("Mod: Eğitici Analiz (Mentor) 💡")
 analyze_button = st.sidebar.button("Analiz Et (AI) ✨")
 
 if analyze_button:
     try:
-        with st.spinner(f'{sembol} analiz ediliyor...'):
+        with st.spinner(f'{sembol} finansal karnesi çıkarılıyor...'):
             hisse = yf.Ticker(sembol)
             bilgi = hisse.info
             hist = hisse.history(period="1y")
@@ -100,7 +108,7 @@ if analyze_button:
                 st.markdown("---")
 
                 # AI Raporu
-                st.subheader("🤖 AI Analist Görüşü")
+                st.subheader("📝 Yapay Zeka Yorumu")
                 
                 ai_raporu = yapay_zeka_yorumu_al(sembol, guncel_fiyat, fk, pd_dd, son_rsi, degisim)
                 
