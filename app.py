@@ -4,21 +4,17 @@ import plotly.graph_objects as go
 from groq import Groq
 
 # --- SAYFA AYARLARI ---
-st.set_page_config(
-    page_title="BIST Radar AI",
-    page_icon="⚡",
-    layout="wide"
-)
+st.set_page_config(page_title="BIST Radar AI", page_icon="⚡", layout="wide")
 
-# --- 1. API KURULUMU (GROQ) ---
+# --- 1. API KURULUMU ---
 try:
     api_key = st.secrets["GROQ_API_KEY"]
     client = Groq(api_key=api_key)
-except Exception:
-    st.error("⚠️ API Anahtarı hatası! Streamlit Secrets kısmını kontrol et.")
+except Exception as e:
+    st.error(f"⚠️ API Anahtarı sorunu: {e}")
     st.stop()
 
-# --- 2. TEKNİK FONKSİYONLAR ---
+# --- 2. FONKSİYONLAR ---
 def rsi_hesapla(data, window=14):
     delta = data['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
@@ -26,100 +22,63 @@ def rsi_hesapla(data, window=14):
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
-# --- ZOMBi HAFIZA ENGELLEYİCİ ---
-# ttl=0 yaparak şimdilik hafızayı kapatıyoruz ki her seferinde taze deneme yapsın.
-# Sistem oturduğunda bunu açarız.
+# Cache'i kapattık, hatayı görmek istiyoruz
 @st.cache_data(ttl=0, show_spinner=False)
 def yapay_zeka_yorumu_al(sembol, fiyat, fk, pd_dd, rsi, degisim):
-    """Groq (Mixtral) modelini kullanır - Daha Tenha Hat"""
     try:
         prompt = f"""
-        Sen Borsa İstanbul konusunda uzmanlaşmış kıdemli bir analistsin.
-        Aşağıdaki verilere göre {sembol} hissesi için yatırımcıya yönelik 
-        kısa, profesyonel, risk ve fırsatları içeren bir analiz paragrafı yaz.
-        
-        Kurallar:
-        1. Asla "Yatırım Tavsiyesidir" veya "AL/SAT" deme.
-        2. Türkçe yaz. Finansal terimleri doğru kullan.
-        3. Çok uzun yazma, vurucu ol.
-        
-        VERİLER:
-        - Hisse: {sembol}
-        - Fiyat: {fiyat} TL
-        - Değişim: %{degisim:.2f}
-        - F/K: {fk} 
-        - PD/DD: {pd_dd}
-        - RSI: {rsi:.1f}
+        Sen kıdemli bir borsa analistisin. {sembol} için kısa bir analiz yaz.
+        Veriler: Fiyat {fiyat}, F/K {fk}, RSI {rsi}. 
+        Yatırım tavsiyesi verme.
         """
         
-        # MODEL DEĞİŞİKLİĞİ: Mixtral modeli (Daha az yoğun)
         chat_completion = client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
-            model="mixtral-8x7b-32768", 
+            model="mixtral-8x7b-32768",
         )
         return chat_completion.choices[0].message.content
+        
     except Exception as e:
-        return None 
+        # İŞTE BURASI: Hatayı gizlemek yerine geri döndürüyoruz!
+        return f"HATA DETAYI: {str(e)}"
 
 # --- 3. ARAYÜZ ---
-st.title("⚡ BIST Radar: Hızlı AI Analiz")
+st.title("⚡ BIST Radar: Teşhis Modu")
 st.markdown("---")
 
 st.sidebar.header("🔍 Hisse Seçimi")
 sembol = st.sidebar.text_input("Hisse Kodu", value="THYAO").upper()
 if not sembol.endswith(".IS"): sembol += ".IS"
 
-st.sidebar.info("Motor: Groq (Mixtral 8x7b) 🚀")
 analyze_button = st.sidebar.button("Analiz Et (AI) ✨")
 
 if analyze_button:
-    try:
-        with st.spinner(f'{sembol} analiz ediliyor...'):
+    with st.spinner(f'{sembol} analiz ediliyor...'):
+        try:
             hisse = yf.Ticker(sembol)
             bilgi = hisse.info
             hist = hisse.history(period="1y")
             
             if 'currentPrice' not in bilgi:
-                st.error("❌ Veri çekilemedi. Hisse kodunu kontrol et.")
+                st.error("Veri yok.")
             else:
+                # Hesaplamalar
                 guncel_fiyat = bilgi.get('currentPrice')
                 fk = bilgi.get('trailingPE', 0)
                 pd_dd = bilgi.get('priceToBook', 0)
                 hist['RSI'] = rsi_hesapla(hist)
                 son_rsi = hist['RSI'].iloc[-1]
-                onceki_kapanis = hist['Close'].iloc[-2]
-                degisim = ((guncel_fiyat - onceki_kapanis) / onceki_kapanis) * 100
+                degisim = 0 # Basit tutalım şimdilik
 
-                # Metrikler
-                st.subheader(f"🏢 {bilgi.get('longName', sembol)}")
-                c1, c2, c3, c4 = st.columns(4)
-                c1.metric("Fiyat", f"{guncel_fiyat} ₺", f"%{degisim:.2f}")
-                c2.metric("F/K", f"{fk:.2f}")
-                c3.metric("PD/DD", f"{pd_dd:.2f}")
-                rsi_renk = "inverse" if son_rsi > 70 else ("off" if son_rsi < 30 else "normal")
-                c4.metric("RSI", f"{son_rsi:.1f}", delta_color=rsi_renk)
-                
-                st.markdown("---")
-
-                # AI Raporu
+                # Raporu Çağır
                 st.subheader("🤖 AI Analist Görüşü")
-                
                 ai_raporu = yapay_zeka_yorumu_al(sembol, guncel_fiyat, fk, pd_dd, son_rsi, degisim)
                 
-                if ai_raporu:
-                    st.info(ai_raporu)
+                # Hatayı Kırmızı, Raporu Mavi Göster
+                if "HATA DETAYI" in ai_raporu:
+                    st.error(ai_raporu) # Kırmızı kutu
                 else:
-                    st.warning("⚠️ AI Servisi şu an yoğun, ancak veriler ve grafikler aşağıda güncel! 👇")
-
-                st.markdown("---")
-
-                # Grafik
-                st.subheader("Teknik Görünüm")
-                fig = go.Figure()
-                fig.add_trace(go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'],
-                                             low=hist['Low'], close=hist['Close'], name='Fiyat'))
-                fig.update_layout(height=400, template="plotly_dark", title=f"{sembol} Mum Grafiği")
-                st.plotly_chart(fig, use_container_width=True)
-
-    except Exception as e:
-        st.error(f"Beklenmedik bir hata: {e}")
+                    st.info(ai_raporu)  # Mavi kutu
+                    
+        except Exception as e:
+            st.error(f"Genel Hata: {e}")
