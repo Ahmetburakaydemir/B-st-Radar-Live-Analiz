@@ -27,10 +27,10 @@ def rsi_hesapla(data, window=14):
     return 100 - (100 / (1 + rs))
 
 def yapay_zeka_yorumu_al(sembol, fiyat, fk, pd_dd, rsi, degisim):
-    """Google Gemini-1.5-Flash (Hızlı ve Ücretsiz) modelini kullanır"""
+    """Google Gemini-2.0-Flash modelini kullanır (Senin listende mevcut)"""
     try:
-        # BURASI DEĞİŞTİ: En yüksek kotalı ve ücretsiz model
-        model = genai.GenerativeModel('gemini-1.5-flash') 
+        # BURASI DEĞİŞTİ: Senin listende görünen Flash modeli
+        model = genai.GenerativeModel('gemini-2.0-flash') 
         
         prompt = f"""
         Sen Borsa İstanbul konusunda uzmanlaşmış kıdemli bir analistsin.
@@ -54,7 +54,7 @@ def yapay_zeka_yorumu_al(sembol, fiyat, fk, pd_dd, rsi, degisim):
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        return f"AI Hatası: {e}. (Lütfen 1 dakika bekleyip tekrar dene)."
+        return f"AI Bağlantı Hatası: {e}"
 
 # --- 3. ARAYÜZ ---
 st.title("🧠 BIST Radar: Yapay Zeka Destekli Analiz")
@@ -64,7 +64,7 @@ st.sidebar.header("🔍 Hisse Seçimi")
 sembol = st.sidebar.text_input("Hisse Kodu", value="THYAO").upper()
 if not sembol.endswith(".IS"): sembol += ".IS"
 
-st.sidebar.info("Motor: Google Gemini 1.5 Flash ⚡")
+st.sidebar.info("Motor: Google Gemini 2.0 Flash ⚡")
 analyze_button = st.sidebar.button("Analiz Et (AI) ✨")
 
 if analyze_button:
