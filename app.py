@@ -1,7 +1,7 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go # Yeni Görselleştirme Kütüphanemiz
 
 # --- SAYFA AYARLARI ---
 st.set_page_config(
@@ -12,7 +12,6 @@ st.set_page_config(
 
 # --- FONKSİYONLAR ---
 def rsi_hesapla(data, window=14):
-    """Pandas ile RSI (Göreceli Güç Endeksi) hesaplar"""
     delta = data['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
@@ -21,106 +20,84 @@ def rsi_hesapla(data, window=14):
     return rsi
 
 # --- BAŞLIK ---
-st.title("📡 BIST Radar PRO: Teknik & Temel Analiz")
+st.title("📡 BIST Radar: Profesyonel Analiz")
 st.markdown("---")
 
 # --- YAN MENÜ ---
 st.sidebar.header("🔍 Hisse Arama")
-sembol = st.sidebar.text_input("Hisse Kodu (Örn: ASELS, THYAO)", value="THYAO").upper()
+sembol = st.sidebar.text_input("Hisse Kodu", value="THYAO").upper()
 
 if not sembol.endswith(".IS"):
     arama_kodu = sembol + ".IS"
 else:
     arama_kodu = sembol
 
+periyot = st.sidebar.selectbox("Zaman Aralığı", ["3mo", "6mo", "1y", "2y"], index=1)
 analyze_button = st.sidebar.button("Analiz Et 🚀")
-
-st.sidebar.info("PRO Sürüm: Artık RSI ve Teknik Göstergeler devrede.")
 
 # --- ANA PROGRAM ---
 if analyze_button:
     try:
-        with st.spinner(f'{sembol} verileri ve teknik indikatörler hesaplanıyor...'):
-            # Veri Çekme (Son 1 Yıllık veri lazım teknik analiz için)
+        with st.spinner('Veriler Bloomberg terminali kalitesinde işleniyor...'):
+            # Veri Çekme
             hisse = yf.Ticker(arama_kodu)
             bilgi = hisse.info
-            gecmis_veri = hisse.history(period="1y")
+            gecmis_veri = hisse.history(period=periyot)
             
             if 'currentPrice' not in bilgi:
                 st.error(f"❌ Hata: '{sembol}' verisi çekilemedi.")
             else:
-                # --- HESAPLAMALAR ---
-                # RSI Hesapla ve son veriye ekle
+                # RSI Hesapla
                 gecmis_veri['RSI'] = rsi_hesapla(gecmis_veri)
                 son_rsi = gecmis_veri['RSI'].iloc[-1]
                 
-                # --- 1. ÜST BİLGİ KARTLARI ---
+                # --- ÜST BİLGİ KARTLARI ---
                 st.subheader(f"🏢 {bilgi.get('longName', sembol)}")
-                
                 col1, col2, col3, col4 = st.columns(4)
-                fiyat = bilgi.get('currentPrice')
-                fk = bilgi.get('trailingPE')
-                pd_dd = bilgi.get('priceToBook')
                 
-                col1.metric("Fiyat", f"{fiyat} ₺")
-                col2.metric("F/K", f"{fk:.2f}" if fk else "-")
-                col3.metric("PD/DD", f"{pd_dd:.2f}" if pd_dd else "-")
+                col1.metric("Fiyat", f"{bilgi.get('currentPrice')} ₺")
+                col2.metric("F/K", f"{bilgi.get('trailingPE', 0):.2f}")
+                col3.metric("PD/DD", f"{bilgi.get('priceToBook', 0):.2f}")
                 
-                # RSI Rengi Ayarlama
-                rsi_renk = "normal"
-                if son_rsi > 70: rsi_renk = "inverse" # Kırmızı (Tehlike)
-                if son_rsi < 30: rsi_renk = "off"     # Yeşilimsi (Fırsat) - Streamlit hilesi
+                rsi_renk = "inverse" if son_rsi > 70 else ("off" if son_rsi < 30 else "normal")
+                col4.metric("RSI (Momentum)", f"{son_rsi:.1f}", delta_color=rsi_renk)
                 
-                col4.metric("RSI (Teknik)", f"{son_rsi:.1f}", delta_color=rsi_renk)
-                
-                # --- 2. YAPAY ZEKA YORUMU (HİBRİT) ---
                 st.markdown("---")
-                st.subheader("🤖 Yapay Zeka Görüşü (Temel + Teknik)")
-                
-                c1, c2 = st.columns(2)
-                
-                with c1:
-                    st.info("📊 **Temel Analiz (Şirket Durumu)**")
-                    # F/K Yorumu
-                    if fk:
-                        if fk < 5: st.write("✅ F/K çok düşük. Şirket ucuz kalmış.")
-                        elif fk > 20: st.write("⚠️ F/K yüksek. Geleceği fiyatlıyor olabilir.")
-                        else: st.write("⚖️ F/K makul seviyelerde.")
-                    # PD/DD Yorumu
-                    if pd_dd and pd_dd < 1: st.write("✅ Defter değerinin altında işlem görüyor.")
 
-                with c2:
-                    st.warning("📈 **Teknik Analiz (Zamanlama)**")
-                    # RSI Yorumu
-                    if son_rsi > 70:
-                        st.write(f"🔥 **RSI: {son_rsi:.0f} (AŞIRI ALIM)**")
-                        st.write("Hisse çok hızlı yükselmiş, kar satışı gelebilir. Dikkatli ol.")
-                    elif son_rsi < 30:
-                        st.write(f"❄️ **RSI: {son_rsi:.0f} (AŞIRI SATIM)**")
-                        st.write("Hisse çok düşmüş, tepki yükselişi gelebilir. Fırsat bölgesi.")
-                    else:
-                        st.write(f"↔️ **RSI: {son_rsi:.0f} (NÖTR)**")
-                        st.write("Hisse dengeli seyrediyor. Aşırılık yok.")
+                # --- PROFESYONEL GRAFİK (MUM GRAFİĞİ) ---
+                st.subheader(f"📈 {sembol} Fiyat Hareketleri (Candlestick)")
+                
+                # Plotly ile Mum Grafiği Çizimi
+                fig = go.Figure()
+                
+                # Mum Çubukları (Kırmızı/Yeşil)
+                fig.add_trace(go.Candlestick(
+                    x=gecmis_veri.index,
+                    open=gecmis_veri['Open'],
+                    high=gecmis_veri['High'],
+                    low=gecmis_veri['Low'],
+                    close=gecmis_veri['Close'],
+                    name='Fiyat'
+                ))
+                
+                # Grafiği Güzelleştirme
+                fig.update_layout(
+                    height=500,
+                    title=f'{sembol} Teknik Analiz Grafiği',
+                    yaxis_title='Fiyat (TL)',
+                    xaxis_rangeslider_visible=False, # Alttaki kaydırma çubuğunu gizle
+                    template="plotly_dark" # Karanlık mod (Daha havalı)
+                )
+                
+                # Grafiği Ekrana Bas
+                st.plotly_chart(fig, use_container_width=True)
 
-                # --- 3. GRAFİKLER (FİYAT VE RSI) ---
-                st.markdown("---")
-                st.subheader("Grafik Analizi")
+                # --- RSI GRAFİĞİ (ALTTA) ---
+                st.info("💡 İPUCU: Grafiğin üzerine gelerek zoom yapabilir, değerleri görebilirsin.")
                 
-                # İki sekmeli yapı kuralım
-                tab1, tab2 = st.tabs(["Fiyat Grafiği", "RSI Göstergesi"])
-                
-                with tab1:
-                    st.line_chart(gecmis_veri['Close'])
-                    
-                with tab2:
-                    # RSI Grafiğini Matplotlib ile çizelim (Limit çizgileri için)
-                    fig, ax = plt.subplots(figsize=(10, 4))
-                    ax.plot(gecmis_veri.index, gecmis_veri['RSI'], color='purple', label='RSI')
-                    ax.axhline(70, color='red', linestyle='--', label='Aşırı Alım (70)')
-                    ax.axhline(30, color='green', linestyle='--', label='Aşırı Satım (30)')
-                    ax.set_title("RSI Momentum Grafiği")
-                    ax.legend()
-                    st.pyplot(fig)
+                # RSI için basit çizgi grafik devam etsin
+                st.subheader("RSI Göstergesi")
+                st.line_chart(gecmis_veri['RSI'])
 
     except Exception as e:
-        st.error(f"Hata oluştu: {e}")
+        st.error(f"Beklenmedik bir hata: {e}")
