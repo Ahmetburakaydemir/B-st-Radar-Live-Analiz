@@ -28,7 +28,8 @@ def rsi_hesapla(data, window=14):
 
 def yapay_zeka_yorumu_al(sembol, fiyat, fk, pd_dd, rsi, degisim):
     """Google Gemini'ye verileri gönderip yorum alır"""
-    model = genai.GenerativeModel('gemini-1.5-flash') # Hızlı ve ekonomik model
+    model = genai.GenerativeModel('gemini-pro')
+ # Hızlı ve ekonomik model
     
     prompt = f"""
     Sen kıdemli bir Borsa İstanbul analistisin. Aşağıdaki verilere göre {sembol} hissesi için 
