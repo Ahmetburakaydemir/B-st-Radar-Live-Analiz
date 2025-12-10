@@ -100,4 +100,5 @@ if analyze_button:
                 st.line_chart(gecmis_veri['RSI'])
 
     except Exception as e:
+
         st.error(f"Beklenmedik bir hata: {e}")
