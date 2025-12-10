@@ -5,7 +5,7 @@ import google.generativeai as genai
 
 # --- SAYFA AYARLARI ---
 st.set_page_config(
-    page_title="BIST Radar AI (Pro)",
+    page_title="BIST Radar AI",
     page_icon="🧠",
     layout="wide"
 )
@@ -27,52 +27,49 @@ def rsi_hesapla(data, window=14):
     return 100 - (100 / (1 + rs))
 
 def yapay_zeka_yorumu_al(sembol, fiyat, fk, pd_dd, rsi, degisim):
-    """Google Gemini-2.5-PRO modeline verileri gönderip yorum alır"""
+    """Google Gemini-1.5-Flash (Hızlı ve Ücretsiz) modelini kullanır"""
     try:
-        # --- MODEL SEÇİMİ ---
-        # Listende "gemini-2.5-pro" olduğunu teyit ettik, bu çok güçlüdür.
-        # Eğer "gemini-3.0-pro" kullanmak istersen aşağıdaki ismi değiştirebilirsin.
-        model = genai.GenerativeModel('gemini-2.5-pro') 
+        # BURASI DEĞİŞTİ: En yüksek kotalı ve ücretsiz model
+        model = genai.GenerativeModel('gemini-1.5-flash') 
         
         prompt = f"""
-        Sen Wall Street seviyesinde uzman bir Kıdemli Borsa Stratejistisin.
-        Aşağıdaki teknik ve temel verileri analiz ederek {sembol} hissesi için 
-        yatırımcıya yönelik PROFESYONEL, DERİNLEMESİNE ve AKICI bir analiz yaz.
+        Sen Borsa İstanbul konusunda uzmanlaşmış kıdemli bir analistsin.
+        Aşağıdaki verilere göre {sembol} hissesi için yatırımcıya yönelik 
+        kısa, profesyonel, risk ve fırsatları içeren bir analiz paragrafı yaz.
         
         Kurallar:
-        1. Asla "Yatırım Tavsiyesidir" deme.
-        2. Rakamları tekrar etme, rakamların ne anlama geldiğini (hikayesini) anlat.
-        3. Riskleri ve Fırsatları net bir dille vurgula.
-        4. Paragraf yapısı kullan, maddeler halinde yazma.
+        1. Asla "Yatırım Tavsiyesidir" veya "AL/SAT" deme.
+        2. Finansal okuryazarlık dili kullan.
+        3. Akıcı bir Türkçe ile yaz.
         
         VERİLER:
-        - Hisse Kodu: {sembol}
-        - Anlık Fiyat: {fiyat} TL
-        - Günlük Değişim: %{degisim:.2f}
-        - F/K Oranı: {fk} (Sektör ortalamasını 8-10 kabul et)
-        - PD/DD Oranı: {pd_dd}
-        - RSI Değeri: {rsi:.1f} (30 altı aşırı satım/fırsat, 70 üstü aşırı alım/risk)
+        - Hisse: {sembol}
+        - Fiyat: {fiyat} TL
+        - Değişim: %{degisim:.2f}
+        - F/K: {fk} 
+        - PD/DD: {pd_dd}
+        - RSI: {rsi:.1f}
         """
         
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        return f"AI Bağlantı Hatası: {e}"
+        return f"AI Hatası: {e}. (Lütfen 1 dakika bekleyip tekrar dene)."
 
 # --- 3. ARAYÜZ ---
-st.title("🧠 BIST Radar: Pro AI Analiz")
+st.title("🧠 BIST Radar: Yapay Zeka Destekli Analiz")
 st.markdown("---")
 
 st.sidebar.header("🔍 Hisse Seçimi")
 sembol = st.sidebar.text_input("Hisse Kodu", value="THYAO").upper()
 if not sembol.endswith(".IS"): sembol += ".IS"
 
-st.sidebar.info("Motor: Google Gemini 2.5 Pro 🚀")
-analyze_button = st.sidebar.button("Analiz Et (PRO) ✨")
+st.sidebar.info("Motor: Google Gemini 1.5 Flash ⚡")
+analyze_button = st.sidebar.button("Analiz Et (AI) ✨")
 
 if analyze_button:
     try:
-        with st.spinner(f'{sembol} için Gemini 2.5 Pro beyni çalışıyor... (Bu işlem derin analiz yaptığı için 5-10 sn sürebilir)'):
+        with st.spinner(f'{sembol} analiz ediliyor...'):
             hisse = yf.Ticker(sembol)
             bilgi = hisse.info
             hist = hisse.history(period="1y")
@@ -100,9 +97,9 @@ if analyze_button:
                 st.markdown("---")
 
                 # AI Raporu
-                st.subheader("🤖 AI Stratejist Görüşü")
+                st.subheader("🤖 AI Analist Görüşü")
                 ai_raporu = yapay_zeka_yorumu_al(sembol, guncel_fiyat, fk, pd_dd, son_rsi, degisim)
-                st.success(ai_raporu) # Pro analiz olduğu için yeşil kutuda (Success) gösterelim
+                st.info(ai_raporu)
                 
                 st.markdown("---")
 
