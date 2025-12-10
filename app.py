@@ -1,21 +1,21 @@
 import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
-import google.generativeai as genai
+from groq import Groq
 
 # --- SAYFA AYARLARI ---
 st.set_page_config(
     page_title="BIST Radar AI",
-    page_icon="🧠",
+    page_icon="⚡",
     layout="wide"
 )
 
-# --- 1. API KURULUMU ---
+# --- 1. API KURULUMU (GROQ) ---
 try:
-    api_key = st.secrets["GOOGLE_API_KEY"]
-    genai.configure(api_key=api_key)
+    api_key = st.secrets["GROQ_API_KEY"]
+    client = Groq(api_key=api_key)
 except Exception:
-    st.error("⚠️ API Anahtarı hatası! Secrets ayarlarını kontrol et.")
+    st.error("⚠️ API Anahtarı hatası! Streamlit Secrets kısmına 'GROQ_API_KEY' ekledin mi?")
     st.stop()
 
 # --- 2. TEKNİK FONKSİYONLAR ---
@@ -27,11 +27,8 @@ def rsi_hesapla(data, window=14):
     return 100 - (100 / (1 + rs))
 
 def yapay_zeka_yorumu_al(sembol, fiyat, fk, pd_dd, rsi, degisim):
-    """Google Gemini-2.0-Flash-EXP (Ücretsiz Test Sürümü)"""
+    """Groq (Llama-3) modelini kullanır - Şimşek Hızında"""
     try:
-        # KRİTİK DEĞİŞİKLİK: Sonuna '-exp' ekledik. Bu ücretsizdir.
-        model = genai.GenerativeModel('gemini-2.0-flash-exp') 
-        
         prompt = f"""
         Sen Borsa İstanbul konusunda uzmanlaşmış kıdemli bir analistsin.
         Aşağıdaki verilere göre {sembol} hissesi için yatırımcıya yönelik 
@@ -39,8 +36,8 @@ def yapay_zeka_yorumu_al(sembol, fiyat, fk, pd_dd, rsi, degisim):
         
         Kurallar:
         1. Asla "Yatırım Tavsiyesidir" veya "AL/SAT" deme.
-        2. Finansal okuryazarlık dili kullan.
-        3. Akıcı bir Türkçe ile yaz.
+        2. Türkçe yaz. Finansal terimleri doğru kullan.
+        3. Çok uzun yazma, vurucu ol.
         
         VERİLER:
         - Hisse: {sembol}
@@ -51,21 +48,28 @@ def yapay_zeka_yorumu_al(sembol, fiyat, fk, pd_dd, rsi, degisim):
         - RSI: {rsi:.1f}
         """
         
-        response = model.generate_content(prompt)
-        return response.text
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            model="llama3-8b-8192", # Meta'nın çok hızlı ve zeki modeli
+        )
+        return chat_completion.choices[0].message.content
     except Exception as e:
-        # Hata mesajını temizleyip gösterelim
-        return f"AI Bağlantı Hatası: {str(e)[:100]}... (Lütfen tekrar dene)"
+        return f"AI Bağlantı Hatası: {e}"
 
 # --- 3. ARAYÜZ ---
-st.title("🧠 BIST Radar: Yapay Zeka Destekli Analiz")
+st.title("⚡ BIST Radar: Hızlı AI Analiz")
 st.markdown("---")
 
 st.sidebar.header("🔍 Hisse Seçimi")
 sembol = st.sidebar.text_input("Hisse Kodu", value="THYAO").upper()
 if not sembol.endswith(".IS"): sembol += ".IS"
 
-st.sidebar.info("Motor: Google Gemini 2.0 Flash (Experimental) ⚡")
+st.sidebar.info("Motor: Groq (Llama-3) 🚀")
 analyze_button = st.sidebar.button("Analiz Et (AI) ✨")
 
 if analyze_button:
@@ -100,12 +104,7 @@ if analyze_button:
                 # AI Raporu
                 st.subheader("🤖 AI Analist Görüşü")
                 ai_raporu = yapay_zeka_yorumu_al(sembol, guncel_fiyat, fk, pd_dd, son_rsi, degisim)
-                
-                # Eğer hata mesajı dönerse kırmızı, rapor dönerse mavi göster
-                if "Hata" in ai_raporu:
-                    st.error(ai_raporu)
-                else:
-                    st.info(ai_raporu)
+                st.info(ai_raporu)
                 
                 st.markdown("---")
 
