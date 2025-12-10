@@ -3,4 +3,4 @@ yfinance
 pandas
 matplotlib
 plotly
-google-generativeai>=0.7.0
+groq
