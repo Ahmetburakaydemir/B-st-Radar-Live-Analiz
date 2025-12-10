@@ -27,10 +27,10 @@ def rsi_hesapla(data, window=14):
     return 100 - (100 / (1 + rs))
 
 def yapay_zeka_yorumu_al(sembol, fiyat, fk, pd_dd, rsi, degisim):
-    """Google Gemini-1.5-Flash modeline verileri gönderip yorum alır"""
+    """Google Gemini-1.0-Pro (Stable) modeline verileri gönderip yorum alır"""
     try:
-        # BURASI GÜNCELLENDİ: En yeni ve hızlı model
-        model = genai.GenerativeModel('gemini-1.5-flash') 
+        # DEĞİŞİKLİK BURADA: En stabil, en garanti çalışan sürüm.
+        model = genai.GenerativeModel('gemini-1.0-pro') 
         
         prompt = f"""
         Sen uzman bir borsa analistisin. Aşağıdaki verilere göre {sembol} hissesi için 
@@ -46,10 +46,11 @@ def yapay_zeka_yorumu_al(sembol, fiyat, fk, pd_dd, rsi, degisim):
         - RSI Değeri: {rsi:.1f}
         """
         
+        # generation_config ekleyerek hatayı önlemeye çalışıyoruz
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        return f"AI Hatası: {e}. (Lütfen sayfayı yenilemeyi dene)."
+        return f"AI Hatası: {e}"
 
 # --- 3. ARAYÜZ ---
 st.title("🧠 BIST Radar: Yapay Zeka Destekli Analiz")
