@@ -2,14 +2,40 @@ import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
 from groq import Groq
-import pandas as pd
+import re # Metin temizliği için Regex kütüphanesi
 
 # --- SAYFA AYARLARI ---
 st.set_page_config(
-    page_title="BIST Radar: Düello",
-    page_icon="🥊",
+    page_title="BIST Radar Pro",
+    page_icon="💎",
     layout="wide"
 )
+
+# --- GURU DOKUNUŞU: ÖZEL CSS İLE GÖRSEL MAKYAJ ---
+# Bu blok, uygulamanın standart görünümünü değiştirip "Kart" yapısı kazandırır.
+st.markdown("""
+    <style>
+    /* Metrik Kutularını Güzelleştirme */
+    div[data-testid="stMetric"] {
+        background-color: #1E1E1E;
+        border: 1px solid #333;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+    }
+    div[data-testid="stMetric"] label {
+        color: #B0B0B0 !important;
+    }
+    /* Başlıkları Renklendirme */
+    h1, h2, h3 {
+        color: #00ADB5 !important;
+    }
+    /* Kenar Çubuğu Rengi */
+    section[data-testid="stSidebar"] {
+        background-color: #121212;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # --- 1. SABİT LİSTE ---
 BIST_SIRKETLERI = {
@@ -52,7 +78,7 @@ except Exception:
     st.error("⚠️ API Anahtarı hatası! Secrets kısmını kontrol et.")
     st.stop()
 
-# --- 3. YARDIMCI FONKSİYONLAR (İŞÇİ ROBOTLAR) ---
+# --- 3. YARDIMCI FONKSİYONLAR ---
 def rsi_hesapla(data, window=14):
     delta = data['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
@@ -61,7 +87,6 @@ def rsi_hesapla(data, window=14):
     return 100 - (100 / (1 + rs))
 
 def veri_getir(sembol):
-    """Verilen sembol için tüm verileri çeker ve paketler"""
     try:
         hisse = yf.Ticker(sembol)
         bilgi = hisse.info
@@ -70,22 +95,17 @@ def veri_getir(sembol):
         if 'currentPrice' not in bilgi:
             return None
             
-        # Temel Veriler
         data = {
             'fiyat': bilgi.get('currentPrice'),
             'fk': bilgi.get('trailingPE', 0),
             'pd_dd': bilgi.get('priceToBook', 0),
             'roe': bilgi.get('returnOnEquity', 0) * 100,
-            'buyume': bilgi.get('revenueGrowth', 0) * 100,
-            'borc': bilgi.get('debtToEquity', 0) / 100,
             'ad': bilgi.get('longName', sembol),
             'hist': hist
         }
         
-        # Teknik Hesaplamalar
         data['hist']['RSI'] = rsi_hesapla(data['hist'])
         data['rsi'] = data['hist']['RSI'].iloc[-1]
-        
         onceki_kapanis = data['hist']['Close'].iloc[-2]
         data['degisim'] = ((data['fiyat'] - onceki_kapanis) / onceki_kapanis) * 100
         
@@ -93,142 +113,143 @@ def veri_getir(sembol):
     except Exception:
         return None
 
-# --- AI ANALİZ FONKSİYONU (TEKLİ ve DÜELLO) ---
+# --- TEMİZLİK ROBOTU ---
+def metni_temizle(metin):
+    """AI çıktısındaki bozuk karakterleri ve İngilizce kalıntıları temizler"""
+    # 1. Çince/Japonca karakterleri sil
+    metin = re.sub(r'[^\x00-\x7F\u00C0-\u00FF\u0100-\u017F\s.,;:!?()"\'-]', '', metin)
+    # 2. Gereksiz İngilizce kelimeleri manuel filtrele (Gerekirse artırılabilir)
+    yasakli = ["approximately", "slightly", "doing", "trading", "However"]
+    for kelime in yasakli:
+        metin = metin.replace(kelime, "")
+        metin = metin.replace(kelime.lower(), "")
+    return metin
+
+# --- AI ANALİZ FONKSİYONU ---
 @st.cache_data(ttl=0, show_spinner=False)
 def ai_analiz(mod, veri1, veri2=None):
-    """
-    mod: 'TEK' veya 'DUELLO'
-    veri1: Ana hisse verileri
-    veri2: Rakip hisse verileri (Opsiyonel)
-    """
     try:
         if mod == 'TEK':
             prompt = f"""
-            Sen uzman bir finansçısın. {veri1['ad']} hissesini analiz et.
-            Veriler: Fiyat {veri1['fiyat']} TL, F/K {veri1['fk']:.2f}, PD/DD {veri1['pd_dd']:.2f}, 
-            ROE %{veri1['roe']:.1f}, RSI {veri1['rsi']:.1f}.
-            Kural: Türkçe konuş, yatırım tavsiyesi verme. Şirket sağlığını ve çarpanlarını yorumla.
+            GÖREV: {veri1['ad']} hissesini bir finans uzmanı olarak Türkçe analiz et.
+            
+            VERİLER:
+            Fiyat: {veri1['fiyat']} TL
+            F/K: {veri1['fk']:.2f} (Sektör ortalaması 8-10)
+            PD/DD: {veri1['pd_dd']:.2f}
+            ROE: %{veri1['roe']:.1f}
+            RSI: {veri1['rsi']:.1f} (30 altı ucuz, 70 üstü pahalı)
+
+            KURALLAR:
+            1. Sadece TÜRKÇE yaz. Yabancı karakter kullanma.
+            2. "Yatırım tavsiyesi değildir" uyarısını cümlenin içine doğal yedir.
+            3. Şirketin durumunu (Ucuz mu/Pahalı mı, Riskli mi?) net bir dille anlat.
             """
         else:
             prompt = f"""
-            Sen uzman bir borsa stratejistisin. Şu iki şirketi "Yatırımcı Gözüyle" kıyasla:
-            
-            1. ŞİRKET: {veri1['ad']}
-            - F/K: {veri1['fk']:.2f} | PD/DD: {veri1['pd_dd']:.2f} | ROE: %{veri1['roe']:.1f} | RSI: {veri1['rsi']:.1f}
-            
-            2. ŞİRKET: {veri2['ad']}
-            - F/K: {veri2['fk']:.2f} | PD/DD: {veri2['pd_dd']:.2f} | ROE: %{veri2['roe']:.1f} | RSI: {veri2['rsi']:.1f}
-            
-            GÖREV:
-            - Bu iki şirketi birbiriyle kıyasla.
-            - "Hangisi daha ucuz?", "Hangisi daha karlı (ROE)?", "Hangisinin tekniği (RSI) daha iyi?" sorularına cevap ver.
-            - Sonuç olarak bir kazanan ilan etme ama hangisinin hangi konuda (Büyüme mi Değer mi) önde olduğunu söyle.
-            - %100 Türkçe ve akıcı ol. Yatırım tavsiyesi verme.
+            GÖREV: {veri1['ad']} ve {veri2['ad']} hisselerini kıyasla.
+
+            1. {veri1['ad']}: F/K {veri1['fk']:.2f}, ROE %{veri1['roe']:.1f}, RSI {veri1['rsi']:.1f}
+            2. {veri2['ad']}: F/K {veri2['fk']:.2f}, ROE %{veri2['roe']:.1f}, RSI {veri2['rsi']:.1f}
+
+            ANALİZ:
+            - Hangisi değerleme olarak daha ucuz?
+            - Hangisi sermayesini daha iyi kullanıyor (ROE)?
+            - Sadece Türkçe yaz. Kısa ve net ol.
             """
             
         chat = client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
             model="llama-3.3-70b-versatile",
-            temperature=0.5
+            temperature=0.1 # Yaratıcılığı kıstık, hata yapma şansı azaldı
         )
-        return chat.choices[0].message.content
+        ham_metin = chat.choices[0].message.content
+        return metni_temizle(ham_metin) # Temizlik robotunu çalıştır
     except Exception as e:
         return f"AI Hatası: {str(e)}"
 
-# --- 4. ARAYÜZ ---
-st.title("🥊 BIST Radar: Hisse Düellosu")
+# --- 4. ARAYÜZ (GÜZELLEŞTİRİLMİŞ) ---
+st.title("💎 BIST Radar Pro")
 st.markdown("---")
 
-# Yan Menü
-st.sidebar.header("🔍 Hisse Seçimi")
-
-# Ana Hisse Seçimi
+st.sidebar.header("Ayarlar")
 list_secenekler = [f"{k} - {v}" for k, v in BIST_SIRKETLERI.items()]
-secim1 = st.sidebar.selectbox("1. Hisse (Ana)", list_secenekler, index=0)
+secim1 = st.sidebar.selectbox("Ana Hisse", list_secenekler, index=0)
 kod1 = secim1.split(" - ")[0] + ".IS"
 
-# Rakip Hisse Seçimi (Checkbox ile aktif olur)
-kiyaslama_modu = st.sidebar.checkbox("Rakip Ekle (Kıyaslama Yap)")
+kiyaslama_modu = st.sidebar.checkbox("Kıyaslama Modu (Düello)")
 kod2 = None
 
 if kiyaslama_modu:
-    secim2 = st.sidebar.selectbox("2. Hisse (Rakip)", list_secenekler, index=1)
+    secim2 = st.sidebar.selectbox("Rakip Hisse", list_secenekler, index=1)
     kod2 = secim2.split(" - ")[0] + ".IS"
-    analyze_btn_text = "DÜELLOYU BAŞLAT ⚔️"
+    analyze_btn_text = "⚔️ DÜELLOYU BAŞLAT"
 else:
-    analyze_btn_text = "ANALİZ ET ✨"
+    analyze_btn_text = "✨ ANALİZ ET"
 
-analyze_button = st.sidebar.button(analyze_btn_text)
-
-# --- ANA PROGRAM ---
-if analyze_button:
-    with st.spinner('Veriler toplanıyor ve AI hakem hazırlanıyor...'):
-        
-        # 1. Ana Hisseyi Çek
+if st.sidebar.button(analyze_btn_text):
+    with st.spinner('Piyasa verileri işleniyor...'):
         data1 = veri_getir(kod1)
         if not data1:
-            st.error("Ana hisse verisi çekilemedi.")
+            st.error("Veri hatası.")
             st.stop()
 
-        # 2. Mod Kontrolü
         if kiyaslama_modu and kod2:
-            # DÜELLO MODU
-            if kod1 == kod2:
-                st.warning("Aynı hisseyi kıyaslayamazsın! Rakibi değiştir.")
-                st.stop()
-                
             data2 = veri_getir(kod2)
             if not data2:
-                st.error("Rakip hisse verisi çekilemedi.")
+                st.error("Rakip verisi hatası.")
                 st.stop()
             
-            # --- GÖRSELLEŞTİRME (YAN YANA) ---
-            st.subheader(f"⚔️ KARŞILAŞTIRMA: {data1['ad']} vs {data2['ad']}")
+            # --- DÜELLO EKRANI ---
+            st.subheader(f"{data1['ad']} vs {data2['ad']}")
             
-            col_a, col_b = st.columns(2)
-            
-            # Sol Köşe (Ana Hisse)
-            with col_a:
-                st.info(f"🔹 {data1['ad']}")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown(f"### 🔹 {data1['ad']}")
                 st.metric("Fiyat", f"{data1['fiyat']} ₺", f"%{data1['degisim']:.2f}")
-                st.metric("F/K (Değerleme)", f"{data1['fk']:.2f}")
-                st.metric("ROE (Karlılık)", f"%{data1['roe']:.1f}")
-                st.metric("RSI (Teknik)", f"{data1['rsi']:.1f}")
+                st.metric("F/K", f"{data1['fk']:.2f}")
+                st.metric("ROE", f"%{data1['roe']:.1f}")
+                st.metric("RSI", f"{data1['rsi']:.1f}")
             
-            # Sağ Köşe (Rakip)
-            with col_b:
-                st.error(f"🔸 {data2['ad']}")
+            with c2:
+                st.markdown(f"### 🔸 {data2['ad']}")
                 st.metric("Fiyat", f"{data2['fiyat']} ₺", f"%{data2['degisim']:.2f}")
-                st.metric("F/K (Değerleme)", f"{data2['fk']:.2f}", delta_color="inverse")
-                st.metric("ROE (Karlılık)", f"%{data2['roe']:.1f}")
-                st.metric("RSI (Teknik)", f"{data2['rsi']:.1f}")
-            
+                st.metric("F/K", f"{data2['fk']:.2f}")
+                st.metric("ROE", f"%{data2['roe']:.1f}")
+                st.metric("RSI", f"{data2['rsi']:.1f}")
+
             st.markdown("---")
-            st.subheader("🤖 AI Stratejist Karşılaştırması")
-            
-            rapor = ai_analiz("DUELLO", data1, data2)
-            st.success(rapor)
+            st.info(f"🤖 **AI Hakem Yorumu:**\n\n{ai_analiz('DUELLO', data1, data2)}")
             
         else:
-            # TEKLİ MOD (Eski versiyonun aynısı)
-            st.subheader(f"🏢 {data1['ad']} Analizi")
+            # --- TEKLİ ANALİZ EKRANI ---
+            st.subheader(f"📊 {data1['ad']} Dashboard")
             
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Fiyat", f"{data1['fiyat']} ₺", f"%{data1['degisim']:.2f}")
-            c2.metric("F/K", f"{data1['fk']:.2f}")
-            c3.metric("ROE", f"%{data1['roe']:.1f}")
-            c4.metric("RSI", f"{data1['rsi']:.1f}")
+            # Kartlar (4 Kolon)
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("Anlık Fiyat", f"{data1['fiyat']} ₺", f"%{data1['degisim']:.2f}")
+            k2.metric("F/K Oranı", f"{data1['fk']:.2f}")
+            k3.metric("Özsermaye Karlılığı (ROE)", f"%{data1['roe']:.1f}")
+            
+            rsi_val = data1['rsi']
+            rsi_color = "inverse" if rsi_val > 70 else ("off" if rsi_val < 30 else "normal")
+            k4.metric("RSI İndikatörü", f"{rsi_val:.1f}", delta_color=rsi_color)
             
             st.markdown("---")
-            st.subheader("📝 AI Yorumu")
-            rapor = ai_analiz("TEK", data1)
-            st.info(rapor)
             
-            # Grafik (Sadece teklide grafik çizelim, sayfa karışmasın)
-            fig = go.Figure()
-            fig.add_trace(go.Candlestick(x=data1['hist'].index, open=data1['hist']['Open'], 
-                                         high=data1['hist']['High'], low=data1['hist']['Low'], 
-                                         close=data1['hist']['Close'], name=data1['ad']))
-            fig.update_layout(height=400, template="plotly_dark", title=f"{data1['ad']} Grafiği")
-            st.plotly_chart(fig, use_container_width=True)
-
+            # Grafik ve AI Yan Yana
+            g1, g2 = st.columns([2, 1]) # Grafik geniş, Yorum dar
+            
+            with g1:
+                st.markdown("#### 📈 Fiyat Grafiği")
+                fig = go.Figure()
+                fig.add_trace(go.Candlestick(x=data1['hist'].index, open=data1['hist']['Open'], 
+                                             high=data1['hist']['High'], low=data1['hist']['Low'], 
+                                             close=data1['hist']['Close'], name=data1['ad']))
+                fig.update_layout(height=400, template="plotly_dark", margin=dict(l=0, r=0, t=30, b=0))
+                st.plotly_chart(fig, use_container_width=True)
+                
+            with g2:
+                st.markdown("#### 🧠 Analist Görüşü")
+                yorum = ai_analiz('TEK', data1)
+                st.success(yorum)
