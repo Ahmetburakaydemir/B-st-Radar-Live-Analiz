@@ -272,4 +272,19 @@ if st.sidebar.button(analyze_btn_text):
                 yorum = ai_analiz('TEK', data1)
                 # Buradaki HTML ile kendi "Sade Lüks" kutumuzu yapıyoruz
                 st.markdown(f"<div class='ai-box'><b>Analist Notu:</b><br><br>{yorum}</div>", unsafe_allow_html=True)
+# --- SIDEBAR ALTINA İMZA EKLEME ---
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🛠️ Tech Stack")
+st.sidebar.info(
+    """
+    Bu proje aşağıdaki teknolojilerle geliştirilmiştir:
+    
+    * 🐍 **Python 3.9**
+    * 📊 **Streamlit Framework**
+    * 🧠 **LLM:** Meta Llama-3 (via Groq)
+    * 📡 **Veri:** Yahoo Finance API
+    * 📈 **Görsel:** Plotly Express
+    """
+)
+st.sidebar.markdown(f"<div style='text-align: center; color: #8B949E; font-size: 12px;'>Geliştirici: [Ahmet Burak Aydemir] © 2025</div>", unsafe_allow_html=True)
 
