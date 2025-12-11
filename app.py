@@ -6,103 +6,102 @@ import re
 
 # --- 1. SAYFA AYARLARI ---
 st.set_page_config(
-    page_title="ODAK | Vision",
-    page_icon="🍎",
+    page_title="ODAK | Master",
+    page_icon="🎯",
     layout="wide"
 )
 
-# --- 2. GURU CSS: APPLE STYLE ANIMATIONS & LAYOUT ---
+# --- 2. GURU CSS: APPLE STYLE + RED SIDEBAR ---
 st.markdown("""
     <style>
-    /* 1. GENEL TYPOGRAPHY VE ARKA PLAN */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
+    /* GENEL FONT VE ARKA PLAN */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
     
     .stApp {
-        background-color: #FBFBFD; /* Apple'ın meşhur kırık beyazı */
+        background-color: #FBFBFD;
         font-family: 'Inter', sans-serif;
         color: #1D1D1F;
     }
+
+    /* --- SIDEBAR ÖZEL TASARIM (İstediğin Renk) --- */
+    section[data-testid="stSidebar"] {
+        background-color: #8B0000; /* Koyu Bordo */
+    }
     
-    /* 2. ANİMASYON TANIMLARI (KEYFRAMES) */
+    /* Sidebar içindeki tüm yazıları BEYAZ yap */
+    section[data-testid="stSidebar"] h1, 
+    section[data-testid="stSidebar"] h2, 
+    section[data-testid="stSidebar"] h3, 
+    section[data-testid="stSidebar"] label, 
+    section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] div,
+    section[data-testid="stSidebar"] p {
+        color: #FFFFFF !important;
+    }
+    
+    /* Sidebar Selectbox İyileştirme */
+    div[data-testid="stSidebar"] .stSelectbox > div > div {
+        background-color: rgba(255,255,255,0.1);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    /* Sidebar Butonu */
+    div[data-testid="stSidebar"] .stButton > button {
+        background-color: #FFFFFF;
+        color: #8B0000;
+        font-weight: bold;
+        border: none;
+        width: 100%;
+    }
+    div[data-testid="stSidebar"] .stButton > button:hover {
+        background-color: #f0f0f0;
+        color: #a00000;
+    }
+
+    /* --- ANİMASYONLAR --- */
     @keyframes fadeInUp {
         from { opacity: 0; transform: translate3d(0, 40px, 0); }
         to { opacity: 1; transform: translate3d(0, 0, 0); }
     }
-
-    /* Animasyon Sınıfları (Gecikmeli) */
     .reveal-1 { animation: fadeInUp 0.8s ease-out forwards; opacity: 0; }
     .reveal-2 { animation: fadeInUp 0.8s ease-out 0.3s forwards; opacity: 0; }
     .reveal-3 { animation: fadeInUp 0.8s ease-out 0.6s forwards; opacity: 0; }
     .reveal-4 { animation: fadeInUp 0.8s ease-out 0.9s forwards; opacity: 0; }
 
-    /* 3. HERO SECTION (ŞİRKET KARTI) */
-    .hero-container {
-        padding: 40px 0;
-        text-align: center;
-        margin-bottom: 40px;
-    }
-    .company-title {
-        font-size: 56px;
-        font-weight: 600;
-        letter-spacing: -1px;
-        color: #1D1D1F;
-        margin-bottom: 10px;
-    }
-    .company-sector {
-        font-size: 20px;
-        color: #86868B;
-        font-weight: 300;
-    }
-    .company-desc {
-        font-size: 16px;
-        color: #424245;
-        max-width: 800px;
-        margin: 20px auto;
-        line-height: 1.6;
-    }
-
-    /* 4. METRİK KARTLARI (GLASS EFFECT) */
+    /* --- HERO & METRİKLER --- */
+    .hero-container { padding: 40px 0; text-align: center; margin-bottom: 30px; }
+    .company-title { font-size: 52px; font-weight: 700; color: #1D1D1F; letter-spacing: -1.5px; }
+    .company-sector { font-size: 18px; color: #86868B; text-transform: uppercase; letter-spacing: 1px; }
+    
     div[data-testid="stMetric"] {
-        background: rgba(255, 255, 255, 0.8);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(0,0,0,0.05);
-        border-radius: 18px;
-        padding: 20px;
-        box-shadow: 0 4px 24px rgba(0,0,0,0.04);
-        transition: transform 0.3s ease;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(0,0,0,0.08);
+        border-radius: 16px;
+        padding: 15px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     }
-    div[data-testid="stMetric"]:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-    }
-    div[data-testid="stMetric"] label { color: #86868B !important; font-size: 14px; }
-    div[data-testid="stMetric"] div[data-testid="stMetricValue"] { color: #1D1D1F !important; font-size: 28px; font-weight: 600; }
 
-    /* 5. F-RAY PUAN KUTUSU (PREMIUM) */
+    /* F-RAY PUAN KUTUSU (Minimalist Siyah) */
     .score-container {
         text-align: center;
-        background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+        background: #1D1D1F;
         color: white;
-        padding: 30px;
-        border-radius: 24px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-    }
-
-    /* 6. AI KUTUSU (MINIMAL) */
-    .ai-box {
-        background-color: #FFFFFF;
-        border-radius: 18px;
-        padding: 40px;
-        box-shadow: 0 4px 24px rgba(0,0,0,0.04);
-        border: 1px solid rgba(0,0,0,0.05);
-        font-size: 17px;
-        line-height: 1.7;
-        color: #333;
+        padding: 25px;
+        border-radius: 20px;
+        box-shadow: 0 15px 40px rgba(0,0,0,0.2);
     }
     
-    /* Gerekli Streamlit Ayarlarını Temizle */
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
+    /* AI KUTUSU */
+    .ai-box {
+        background-color: #FFFFFF;
+        border-radius: 16px;
+        padding: 30px;
+        border: 1px solid rgba(0,0,0,0.05);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+        line-height: 1.8;
+        color: #333;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -173,9 +172,8 @@ def veri_getir(sembol):
         if 30 <= son_rsi <= 70: puan += 20
         if buyume > 20: puan += 20
         
-        # İngilizce Özeti çekiyoruz (AI çevirecek)
         ozet = bilgi.get('longBusinessSummary', 'Şirket açıklaması bulunamadı.')
-        sektor = bilgi.get('sector', 'Bilinmiyor')
+        sektor = bilgi.get('sector', 'Genel')
         
         return {
             'ad': bilgi.get('longName', sembol),
@@ -184,7 +182,7 @@ def veri_getir(sembol):
             'degisim': degisim, 'puan': min(puan, 100),
             'hist': hist, 'ozet': ozet, 'sektor': sektor
         }
-    except Exception as e: return None
+    except Exception: return None
 
 def metni_temizle(metin):
     metin = re.sub(r'[^\x00-\x7F\u00C0-\u00FF\u0100-\u017F\s.,;:!?()"\'-]', '', metin)
@@ -197,14 +195,9 @@ def ai_analiz(veri):
     try:
         prompt = f"""
         GÖREV: {veri['ad']} hissesini analiz et.
-        
-        1. KISIM: Şirketin İngilizce özetini ({veri['ozet'][:200]}...) temel alarak şirketin ne iş yaptığını 2 cümleyle Türkçe anlat.
-        2. KISIM: Verileri yorumla (Fiyat: {veri['fiyat']}, F/K: {veri['fk']:.2f}, ROE: %{veri['roe']:.1f}, Puan: {veri['puan']}/100).
-        
-        KURALLAR:
-        - Başlık kullanma, direkt paragrafla başla.
-        - Çok akıcı, hikaye anlatır gibi, Apple lansmanı tadında Türkçe konuş.
-        - Yabancı karakter kullanma.
+        1. KISIM: İngilizce özeti ({veri['ozet'][:200]}...) baz alarak şirketin ne yaptığını 1 cümleyle Türkçe anlat.
+        2. KISIM: Verileri yorumla (Fiyat: {veri['fiyat']}, F/K: {veri['fk']:.2f}, ROE: %{veri['roe']:.1f}).
+        KURALLAR: Başlık kullanma. Çok akıcı, hikaye anlatır gibi Türkçe konuş.
         """
         chat = client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
@@ -215,31 +208,63 @@ def ai_analiz(veri):
     except Exception as e: return f"AI Hatası: {str(e)}"
 
 # --- 6. ARAYÜZ ---
-# Sidebar (Gizli gibi duran minimal sidebar)
-st.sidebar.markdown("###  ODAK")
+# SIDEBAR (Bordo & Beyaz)
+st.sidebar.markdown("### 🎯 ODAK")
 list_secenekler = [f"{k} - {v}" for k, v in BIST_SIRKETLERI.items()]
 secim1 = st.sidebar.selectbox("Hisse Seçiniz", list_secenekler, index=0)
 kod1 = secim1.split(" - ")[0] + ".IS"
-analyze_btn = st.sidebar.button("Analiz Et")
+analyze_btn = st.sidebar.button("ANALİZİ BAŞLAT")
 
+# --- YENİ EKLENEN: FİNANSAL SÖZLÜK (Hap Bilgiler) ---
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 📚 ODAK AKADEMİ")
+
+with st.sidebar.expander("📝 Bu Terimler Ne Demek?"):
+    st.markdown("""
+    **💰 F/K (Fiyat/Kazanç):**
+    Şirkete yatırdığınız parayı kaç yılda geri alacağınızı gösterir.
+    * *Düşük olması (0-10) genelde ucuzluk belirtisidir.*
+    
+    **🚀 ROE (Özsermaye Karlılığı):**
+    Şirketin ortakların parasını ne kadar verimli kullandığını gösterir.
+    * *%30 ve üzeri 'Mükemmel' kabul edilir.*
+    
+    **📊 RSI (Güç Endeksi):**
+    Hisse aşırı mı alındı yoksa aşırı mı satıldı?
+    * *30 altı: Ucuz (Alım Fırsatı)*
+    * *70 üstü: Pahalı (Satış Baskısı)*
+    
+    **🏢 PD/DD (Piyasa/Defter):**
+    Şirketin borsa değeri, muhasebe değerinin kaç katı?
+    * *1'e yakın olması istenir.*
+    """)
+
+st.sidebar.info("⚠️ **Yasal Uyarı:** Yapay zeka ve veriler hata yapabilir. Buradaki bilgiler yatırım tavsiyesi değildir. Son kararı her zaman siz verin.")
+
+
+# ANA SAYFA AKIŞI
 if analyze_btn:
-    with st.spinner('Veriler işleniyor...'):
+    with st.spinner('ODAK motoru piyasayı tarıyor...'):
         data = veri_getir(kod1)
         if not data: st.error("Veri alınamadı."); st.stop()
         
-        # --- BÖLÜM 1: HERO SECTION (Gecikme Yok) ---
-        # Burası direkt yüklenir, şirketin ihtişamını gösterir.
+        # HERO SECTION
         st.markdown(f"""
         <div class='hero-container reveal-1'>
             <div class='company-sector'>{data['sektor']}</div>
             <div class='company-title'>{data['ad']}</div>
-            <div class='company-desc'>Hisse Fiyatı: <b>{data['fiyat']:.2f} ₺</b> <span style='color: {'#2ecc71' if data['degisim']>0 else '#e74c3c'}'>%{data['degisim']:.2f}</span></div>
+            <div class='company-desc'>
+                Güncel Fiyat: <b style='font-size:20px'>{data['fiyat']:.2f} ₺</b> 
+                <span style='color: {'#2ecc71' if data['degisim']>0 else '#e74c3c'}; background: rgba(0,0,0,0.05); padding: 5px 10px; border-radius: 20px;'>
+                %{data['degisim']:.2f}
+                </span>
+            </div>
         </div>
         """, unsafe_allow_html=True)
         
         st.markdown("---")
 
-        # --- BÖLÜM 2: KARNELER VE METRİKLER (Gecikmeli Gelir) ---
+        # PUAN VE METRİKLER
         c_score, c_metrics = st.columns([1, 2])
         
         with c_score:
@@ -247,9 +272,9 @@ if analyze_btn:
             st.markdown(f"""
             <div class='reveal-2'>
                 <div class='score-container'>
-                    <div style='font-size: 14px; opacity: 0.7; letter-spacing: 2px;'>F-RAY PUANI</div>
-                    <div style='font-size: 64px; font-weight: 700; margin: 10px 0;'>{data['puan']}</div>
-                    <div style='color: {renk}; font-weight: 600;'>{'MÜKEMMEL' if data['puan']>=80 else 'İYİ / ORTA'}</div>
+                    <div style='font-size: 13px; opacity: 0.6; letter-spacing: 2px;'>F-RAY SAĞLIK PUANI</div>
+                    <div style='font-size: 72px; font-weight: 700; margin: 5px 0;'>{data['puan']}</div>
+                    <div style='color: {renk}; font-weight: 600; letter-spacing: 1px;'>{'MÜKEMMEL' if data['puan']>=80 else 'İYİ / ORTA'}</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -257,28 +282,28 @@ if analyze_btn:
         with c_metrics:
             st.markdown("<div class='reveal-2'>", unsafe_allow_html=True)
             m1, m2 = st.columns(2)
-            m1.metric("F/K Oranı", f"{data['fk']:.2f}")
+            m1.metric("F/K (Değerleme)", f"{data['fk']:.2f}")
             m1.metric("ROE (Karlılık)", f"%{data['roe']:.1f}")
-            m2.metric("Büyüme", f"%{data['buyume']:.1f}")
-            m2.metric("RSI", f"{data['rsi']:.1f}")
+            m2.metric("Büyüme (Yıllık)", f"%{data['buyume']:.1f}")
+            m2.metric("RSI (Teknik)", f"{data['rsi']:.1f}")
             st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("<br><br>", unsafe_allow_html=True)
 
-        # --- BÖLÜM 3: GRAFİK (Daha Geç Gelir) ---
+        # GRAFİK
         st.markdown("<div class='reveal-3'>", unsafe_allow_html=True)
-        st.markdown("### 📉 Piyasa Hareketi")
+        st.markdown("### 📉 Fiyat Hareketi")
         fig = go.Figure()
         fig.add_trace(go.Candlestick(x=data['hist'].index, open=data['hist']['Open'], 
                                      high=data['hist']['High'], low=data['hist']['Low'], 
                                      close=data['hist']['Close'], name=data['ad']))
-        fig.update_layout(height=400, template="plotly_white", margin=dict(t=20, b=0, l=0, r=0))
+        fig.update_layout(height=400, template="plotly_white", margin=dict(t=30, b=0, l=0, r=0))
         st.plotly_chart(fig, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("<br><br>", unsafe_allow_html=True)
 
-        # --- BÖLÜM 4: AI STORYTELLING (En Son Gelir) ---
+        # AI YORUMU
         st.markdown("<div class='reveal-4'>", unsafe_allow_html=True)
         st.markdown("### 🧠 ODAK Görüşü")
         yorum = ai_analiz(data)
@@ -286,10 +311,13 @@ if analyze_btn:
         st.markdown("</div>", unsafe_allow_html=True)
 
 else:
-    # Boş ekranda şık bir karşılama
+    # AÇILIŞ EKRANI
     st.markdown("""
-    <div style='text-align: center; padding-top: 100px;'>
-        <h1 style='color: #1D1D1F; font-size: 48px;'>Yatırımın Geleceği.</h1>
-        <p style='color: #86868B; font-size: 20px;'>Analiz etmek için sol menüden bir hisse seçin.</p>
+    <div style='text-align: center; padding-top: 120px;'>
+        <div style='font-size: 80px;'>🎯</div>
+        <h1 style='color: #1D1D1F; font-size: 56px; font-weight: 700; margin-bottom: 10px;'>Yatırımın Odak Noktası.</h1>
+        <p style='color: #86868B; font-size: 22px; max-width: 600px; margin: 0 auto;'>
+            Yapay zeka destekli temel ve teknik analiz için sol menüden bir hisse seçin ve analizi başlatın.
+        </p>
     </div>
     """, unsafe_allow_html=True)
