@@ -2,42 +2,85 @@ import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
 from groq import Groq
-import re # Metin temizliği için Regex kütüphanesi
+import re
 
-# --- SAYFA AYARLARI ---
+# --- 1. SAYFA AYARLARI (MINIMALIST) ---
 st.set_page_config(
-    page_title="BIST Radar Pro",
-    page_icon="💎",
+    page_title="BIST Radar", # "Pro" gibi ekleri attık, sadeleşti.
+    page_icon="📈", # Elmas gitti, ciddi grafik geldi.
     layout="wide"
 )
 
-# --- GURU DOKUNUŞU: ÖZEL CSS İLE GÖRSEL MAKYAJ ---
-# Bu blok, uygulamanın standart görünümünü değiştirip "Kart" yapısı kazandırır.
+# --- 2. GURU CSS: QUIET LUXURY TASARIM ---
+# Burası uygulamanın makyajını yapan kısım.
 st.markdown("""
     <style>
-    /* Metrik Kutularını Güzelleştirme */
+    /* 1. Arka Planı ve Genel Fontu Ayarla */
+    .stApp {
+        background-color: #0E1117; /* Çok koyu antrasit */
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    }
+    
+    /* 2. Metrik Kutuları (Sade Lüks) */
     div[data-testid="stMetric"] {
-        background-color: #1E1E1E;
-        border: 1px solid #333;
+        background-color: #161B22; /* Ana arka plandan bir tık açık */
+        border: 1px solid #30363D; /* Çok ince, zarif çerçeve */
         padding: 15px;
-        border-radius: 10px;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+        border-radius: 8px; /* Yumuşak köşeler */
+        color: white;
     }
+    
+    /* 3. Metrik Yazı Renklerini ZORLA Beyaz Yap (Okunmama sorununu çözer) */
     div[data-testid="stMetric"] label {
-        color: #B0B0B0 !important;
+        color: #8B949E !important; /* Başlıklar (Örn: Fiyat) Duman Grisi */
+        font-size: 14px;
     }
-    /* Başlıkları Renklendirme */
+    div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+        color: #F0F6FC !important; /* Değerler (Örn: 270 TL) Kırık Beyaz */
+        font-weight: 600;
+    }
+    
+    /* 4. Başlıklar */
     h1, h2, h3 {
-        color: #00ADB5 !important;
+        color: #F0F6FC !important;
+        font-weight: 300; /* İnce ve zarif font */
+        letter-spacing: -0.5px;
     }
-    /* Kenar Çubuğu Rengi */
-    section[data-testid="stSidebar"] {
-        background-color: #121212;
+    
+    /* 5. Butonlar (Minimalist) */
+    .stButton > button {
+        background-color: #238636; /* Mat Yeşil */
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 10px 20px;
+        font-weight: 500;
+    }
+    .stButton > button:hover {
+        background-color: #2EA043;
+    }
+
+    /* 6. AI Kutusu (Renkli kutular yerine sade yazı) */
+    .ai-box {
+        background-color: #161B22;
+        border-left: 3px solid #D29922; /* Mat Altın Sarısı Çizgi */
+        padding: 20px;
+        border-radius: 4px;
+        color: #E6EDF3;
+        font-size: 16px;
+        line-height: 1.6;
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
+    
+    /* 7. Spinner Rengi */
+    .stSpinner > div {
+        border-top-color: #D29922 !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 1. SABİT LİSTE ---
+# --- 3. SABİT VERİLER ---
 BIST_SIRKETLERI = {
     "THYAO": "TÜRK HAVA YOLLARI",
     "PGSUS": "PEGASUS",
@@ -70,15 +113,15 @@ BIST_SIRKETLERI = {
     "EKGYO": "EMLAK KONUT"
 }
 
-# --- 2. API KURULUMU ---
+# --- 4. API KURULUMU ---
 try:
     api_key = st.secrets["GROQ_API_KEY"]
     client = Groq(api_key=api_key)
 except Exception:
-    st.error("⚠️ API Anahtarı hatası! Secrets kısmını kontrol et.")
+    st.error("⚠️ API Key Hatası.")
     st.stop()
 
-# --- 3. YARDIMCI FONKSİYONLAR ---
+# --- 5. FONKSİYONLAR ---
 def rsi_hesapla(data, window=14):
     delta = data['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
@@ -92,8 +135,7 @@ def veri_getir(sembol):
         bilgi = hisse.info
         hist = hisse.history(period="1y")
         
-        if 'currentPrice' not in bilgi:
-            return None
+        if 'currentPrice' not in bilgi: return None
             
         data = {
             'fiyat': bilgi.get('currentPrice'),
@@ -110,146 +152,124 @@ def veri_getir(sembol):
         data['degisim'] = ((data['fiyat'] - onceki_kapanis) / onceki_kapanis) * 100
         
         return data
-    except Exception:
-        return None
+    except: return None
 
-# --- TEMİZLİK ROBOTU ---
 def metni_temizle(metin):
-    """AI çıktısındaki bozuk karakterleri ve İngilizce kalıntıları temizler"""
-    # 1. Çince/Japonca karakterleri sil
     metin = re.sub(r'[^\x00-\x7F\u00C0-\u00FF\u0100-\u017F\s.,;:!?()"\'-]', '', metin)
-    # 2. Gereksiz İngilizce kelimeleri manuel filtrele (Gerekirse artırılabilir)
-    yasakli = ["approximately", "slightly", "doing", "trading", "However"]
+    yasakli = ["approximately", "slightly", "doing", "trading", "However", "overall"]
     for kelime in yasakli:
-        metin = metin.replace(kelime, "")
-        metin = metin.replace(kelime.lower(), "")
+        metin = metin.replace(kelime, "").replace(kelime.lower(), "")
     return metin
 
-# --- AI ANALİZ FONKSİYONU ---
 @st.cache_data(ttl=0, show_spinner=False)
 def ai_analiz(mod, veri1, veri2=None):
     try:
         if mod == 'TEK':
             prompt = f"""
-            GÖREV: {veri1['ad']} hissesini bir finans uzmanı olarak Türkçe analiz et.
-            
-            VERİLER:
-            Fiyat: {veri1['fiyat']} TL
-            F/K: {veri1['fk']:.2f} (Sektör ortalaması 8-10)
-            PD/DD: {veri1['pd_dd']:.2f}
-            ROE: %{veri1['roe']:.1f}
-            RSI: {veri1['rsi']:.1f} (30 altı ucuz, 70 üstü pahalı)
-
-            KURALLAR:
-            1. Sadece TÜRKÇE yaz. Yabancı karakter kullanma.
-            2. "Yatırım tavsiyesi değildir" uyarısını cümlenin içine doğal yedir.
-            3. Şirketin durumunu (Ucuz mu/Pahalı mı, Riskli mi?) net bir dille anlat.
+            GÖREV: {veri1['ad']} hissesini Türkçe analiz et.
+            VERİLER: Fiyat: {veri1['fiyat']}, F/K: {veri1['fk']:.2f}, ROE: %{veri1['roe']:.1f}, RSI: {veri1['rsi']:.1f}.
+            KURALLAR: Asla yabancı karakter kullanma. İstanbul Türkçesi ile, bir mentor gibi konuş. 
+            Başlıkları '1. GENEL', '2. ANLAM', '3. SONUÇ' gibi sade tut.
             """
         else:
             prompt = f"""
-            GÖREV: {veri1['ad']} ve {veri2['ad']} hisselerini kıyasla.
-
-            1. {veri1['ad']}: F/K {veri1['fk']:.2f}, ROE %{veri1['roe']:.1f}, RSI {veri1['rsi']:.1f}
-            2. {veri2['ad']}: F/K {veri2['fk']:.2f}, ROE %{veri2['roe']:.1f}, RSI {veri2['rsi']:.1f}
-
-            ANALİZ:
-            - Hangisi değerleme olarak daha ucuz?
-            - Hangisi sermayesini daha iyi kullanıyor (ROE)?
-            - Sadece Türkçe yaz. Kısa ve net ol.
+            GÖREV: {veri1['ad']} vs {veri2['ad']} kıyasla.
+            1. {veri1['ad']}: F/K {veri1['fk']:.2f}, ROE %{veri1['roe']:.1f}
+            2. {veri2['ad']}: F/K {veri2['fk']:.2f}, ROE %{veri2['roe']:.1f}
+            Sadece Türkçe yaz. Hangisi ucuz, hangisi karlı net söyle.
             """
-            
+        
         chat = client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
             model="llama-3.3-70b-versatile",
-            temperature=0.1 # Yaratıcılığı kıstık, hata yapma şansı azaldı
+            temperature=0.1
         )
-        ham_metin = chat.choices[0].message.content
-        return metni_temizle(ham_metin) # Temizlik robotunu çalıştır
+        return metni_temizle(chat.choices[0].message.content)
     except Exception as e:
         return f"AI Hatası: {str(e)}"
 
-# --- 4. ARAYÜZ (GÜZELLEŞTİRİLMİŞ) ---
-st.title("💎 BIST Radar Pro")
+# --- 6. ARAYÜZ ---
+
+# Başlık (Sade)
+st.title("BIST Radar")
+st.markdown("<p style='color: #8B949E; margin-top: -15px;'>Akıllı Finansal Karar Destek Sistemi</p>", unsafe_allow_html=True)
 st.markdown("---")
 
+# Sidebar
 st.sidebar.header("Ayarlar")
 list_secenekler = [f"{k} - {v}" for k, v in BIST_SIRKETLERI.items()]
 secim1 = st.sidebar.selectbox("Ana Hisse", list_secenekler, index=0)
 kod1 = secim1.split(" - ")[0] + ".IS"
 
-kiyaslama_modu = st.sidebar.checkbox("Kıyaslama Modu (Düello)")
+kiyaslama_modu = st.sidebar.checkbox("Kıyaslama Modu")
 kod2 = None
 
 if kiyaslama_modu:
     secim2 = st.sidebar.selectbox("Rakip Hisse", list_secenekler, index=1)
     kod2 = secim2.split(" - ")[0] + ".IS"
-    analyze_btn_text = "⚔️ DÜELLOYU BAŞLAT"
+    analyze_btn_text = "Karşılaştır"
 else:
-    analyze_btn_text = "✨ ANALİZ ET"
+    analyze_btn_text = "Analiz Et"
 
+# Buton
 if st.sidebar.button(analyze_btn_text):
-    with st.spinner('Piyasa verileri işleniyor...'):
+    with st.spinner('Analiz yapılıyor...'):
         data1 = veri_getir(kod1)
-        if not data1:
-            st.error("Veri hatası.")
-            st.stop()
+        if not data1: st.stop()
 
         if kiyaslama_modu and kod2:
             data2 = veri_getir(kod2)
-            if not data2:
-                st.error("Rakip verisi hatası.")
-                st.stop()
+            if not data2: st.stop()
             
-            # --- DÜELLO EKRANI ---
+            # --- DÜELLO ---
             st.subheader(f"{data1['ad']} vs {data2['ad']}")
-            
             c1, c2 = st.columns(2)
+            
             with c1:
-                st.markdown(f"### 🔹 {data1['ad']}")
+                st.markdown(f"**{data1['ad']}**")
                 st.metric("Fiyat", f"{data1['fiyat']} ₺", f"%{data1['degisim']:.2f}")
                 st.metric("F/K", f"{data1['fk']:.2f}")
                 st.metric("ROE", f"%{data1['roe']:.1f}")
-                st.metric("RSI", f"{data1['rsi']:.1f}")
             
             with c2:
-                st.markdown(f"### 🔸 {data2['ad']}")
+                st.markdown(f"**{data2['ad']}**")
                 st.metric("Fiyat", f"{data2['fiyat']} ₺", f"%{data2['degisim']:.2f}")
                 st.metric("F/K", f"{data2['fk']:.2f}")
                 st.metric("ROE", f"%{data2['roe']:.1f}")
-                st.metric("RSI", f"{data2['rsi']:.1f}")
-
-            st.markdown("---")
-            st.info(f"🤖 **AI Hakem Yorumu:**\n\n{ai_analiz('DUELLO', data1, data2)}")
+            
+            # AI Yorumu (Custom Box)
+            yorum = ai_analiz('DUELLO', data1, data2)
+            st.markdown(f"<div class='ai-box'><b>🤖 Yapay Zeka Görüşü:</b><br><br>{yorum}</div>", unsafe_allow_html=True)
             
         else:
-            # --- TEKLİ ANALİZ EKRANI ---
-            st.subheader(f"📊 {data1['ad']} Dashboard")
+            # --- TEKLİ ---
+            st.subheader(f"{data1['ad']}")
             
-            # Kartlar (4 Kolon)
+            # Metrikler
             k1, k2, k3, k4 = st.columns(4)
-            k1.metric("Anlık Fiyat", f"{data1['fiyat']} ₺", f"%{data1['degisim']:.2f}")
-            k2.metric("F/K Oranı", f"{data1['fk']:.2f}")
-            k3.metric("Özsermaye Karlılığı (ROE)", f"%{data1['roe']:.1f}")
+            k1.metric("Fiyat", f"{data1['fiyat']} ₺", f"%{data1['degisim']:.2f}")
+            k2.metric("F/K", f"{data1['fk']:.2f}")
+            k3.metric("ROE", f"%{data1['roe']:.1f}")
+            k4.metric("RSI", f"{data1['rsi']:.1f}")
             
-            rsi_val = data1['rsi']
-            rsi_color = "inverse" if rsi_val > 70 else ("off" if rsi_val < 30 else "normal")
-            k4.metric("RSI İndikatörü", f"{rsi_val:.1f}", delta_color=rsi_color)
+            st.markdown("<br>", unsafe_allow_html=True)
             
-            st.markdown("---")
-            
-            # Grafik ve AI Yan Yana
-            g1, g2 = st.columns([2, 1]) # Grafik geniş, Yorum dar
+            # Grafik ve Yorum
+            g1, g2 = st.columns([2, 1])
             
             with g1:
-                st.markdown("#### 📈 Fiyat Grafiği")
                 fig = go.Figure()
                 fig.add_trace(go.Candlestick(x=data1['hist'].index, open=data1['hist']['Open'], 
                                              high=data1['hist']['High'], low=data1['hist']['Low'], 
                                              close=data1['hist']['Close'], name=data1['ad']))
-                fig.update_layout(height=400, template="plotly_dark", margin=dict(l=0, r=0, t=30, b=0))
+                # Grafik Ayarları (Mat Siyah)
+                fig.update_layout(height=450, template="plotly_dark", 
+                                  paper_bgcolor="#161B22", plot_bgcolor="#161B22",
+                                  margin=dict(l=0, r=0, t=20, b=0))
                 st.plotly_chart(fig, use_container_width=True)
-                
+            
             with g2:
-                st.markdown("#### 🧠 Analist Görüşü")
                 yorum = ai_analiz('TEK', data1)
-                st.success(yorum)
+                # Buradaki HTML ile kendi "Sade Lüks" kutumuzu yapıyoruz
+                st.markdown(f"<div class='ai-box'><b>Analist Notu:</b><br><br>{yorum}</div>", unsafe_allow_html=True)
+
