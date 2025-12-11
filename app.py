@@ -6,72 +6,103 @@ import re
 
 # --- 1. SAYFA AYARLARI ---
 st.set_page_config(
-    page_title="ODAK | Premium",
-    page_icon="🎯",
+    page_title="ODAK | Vision",
+    page_icon="🍎",
     layout="wide"
 )
 
-# --- 2. GURU CSS: PIANO WHITE & SOFT LUXURY ---
+# --- 2. GURU CSS: APPLE STYLE ANIMATIONS & LAYOUT ---
 st.markdown("""
     <style>
-    /* Ana Arka Plan: Soft Beyaz */
+    /* 1. GENEL TYPOGRAPHY VE ARKA PLAN */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
+    
     .stApp {
-        background-color: #F5F7F8;
-        color: #111111;
-        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        background-color: #FBFBFD; /* Apple'ın meşhur kırık beyazı */
+        font-family: 'Inter', sans-serif;
+        color: #1D1D1F;
     }
     
-    /* Metrik Kutuları (Beyaz Kartlar) */
-    div[data-testid="stMetric"] {
-        background-color: #FFFFFF;
-        border: 1px solid #E0E0E0;
-        padding: 15px;
-        border-radius: 12px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05); /* Çok hafif gölge */
+    /* 2. ANİMASYON TANIMLARI (KEYFRAMES) */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translate3d(0, 40px, 0); }
+        to { opacity: 1; transform: translate3d(0, 0, 0); }
     }
-    
-    /* Metrik Yazıları (Piano Black) */
-    div[data-testid="stMetric"] label {
-        color: #666666 !important; /* Başlıklar Gri */
-        font-weight: 500;
-    }
-    div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
-        color: #111111 !important; /* Değerler Simsiyah */
-        font-weight: 700;
-    }
-    
-    /* F-RAY Puan Kutusu (Kontrast İçin Siyah Bıraktık - Lüks Dursun) */
-    .score-box {
-        background: linear-gradient(135deg, #111111 0%, #2c3e50 100%);
-        color: white;
-        border-radius: 15px;
-        padding: 25px;
+
+    /* Animasyon Sınıfları (Gecikmeli) */
+    .reveal-1 { animation: fadeInUp 0.8s ease-out forwards; opacity: 0; }
+    .reveal-2 { animation: fadeInUp 0.8s ease-out 0.3s forwards; opacity: 0; }
+    .reveal-3 { animation: fadeInUp 0.8s ease-out 0.6s forwards; opacity: 0; }
+    .reveal-4 { animation: fadeInUp 0.8s ease-out 0.9s forwards; opacity: 0; }
+
+    /* 3. HERO SECTION (ŞİRKET KARTI) */
+    .hero-container {
+        padding: 40px 0;
         text-align: center;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        margin-bottom: 40px;
     }
-    .score-val { font-size: 48px; font-weight: 800; color: #FFFFFF; }
-    .score-label { font-size: 13px; color: #B0B0B0; letter-spacing: 2px; text-transform: uppercase; margin-top: 5px;}
-    
-    /* AI Kutusu (Minimalist Gri) */
+    .company-title {
+        font-size: 56px;
+        font-weight: 600;
+        letter-spacing: -1px;
+        color: #1D1D1F;
+        margin-bottom: 10px;
+    }
+    .company-sector {
+        font-size: 20px;
+        color: #86868B;
+        font-weight: 300;
+    }
+    .company-desc {
+        font-size: 16px;
+        color: #424245;
+        max-width: 800px;
+        margin: 20px auto;
+        line-height: 1.6;
+    }
+
+    /* 4. METRİK KARTLARI (GLASS EFFECT) */
+    div[data-testid="stMetric"] {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(0,0,0,0.05);
+        border-radius: 18px;
+        padding: 20px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+        transition: transform 0.3s ease;
+    }
+    div[data-testid="stMetric"]:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    }
+    div[data-testid="stMetric"] label { color: #86868B !important; font-size: 14px; }
+    div[data-testid="stMetric"] div[data-testid="stMetricValue"] { color: #1D1D1F !important; font-size: 28px; font-weight: 600; }
+
+    /* 5. F-RAY PUAN KUTUSU (PREMIUM) */
+    .score-container {
+        text-align: center;
+        background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 24px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+
+    /* 6. AI KUTUSU (MINIMAL) */
     .ai-box {
         background-color: #FFFFFF;
-        border-left: 4px solid #111111; /* Siyah Çizgi */
-        padding: 25px;
-        border-radius: 0 12px 12px 0;
-        color: #333333;
-        font-size: 16px;
+        border-radius: 18px;
+        padding: 40px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+        border: 1px solid rgba(0,0,0,0.05);
+        font-size: 17px;
         line-height: 1.7;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        color: #333;
     }
     
-    /* Başlıklar */
-    h1, h2, h3 { color: #111111 !important; letter-spacing: -0.5px; }
-    
-    /* Sidebar */
-    section[data-testid="stSidebar"] {
-        background-color: #FFFFFF;
-        border-right: 1px solid #E0E0E0;
-    }
+    /* Gerekli Streamlit Ayarlarını Temizle */
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -95,7 +126,7 @@ try:
     client = Groq(api_key=api_key)
 except: st.error("API Key Hatası"); st.stop()
 
-# --- 5. GÜÇLENDİRİLMİŞ VERİ MOTORU (YENİ!) ---
+# --- 5. FONKSİYONLAR ---
 def rsi_hesapla(data, window=14):
     delta = data['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
@@ -104,47 +135,32 @@ def rsi_hesapla(data, window=14):
     return 100 - (100 / (1 + rs))
 
 def veri_getir(sembol):
-    """
-    Bu fonksiyon artık '0' gelen verileri tamir etmeye çalışır.
-    """
     try:
         hisse = yf.Ticker(sembol)
-        
-        # 1. Yöntem: Standart Bilgi
         bilgi = hisse.info
-        
-        # 2. Yöntem: Fast Info (Daha güvenilir fiyat için)
         fast_info = hisse.fast_info
         
-        # Fiyatı garantileme
         guncel_fiyat = bilgi.get('currentPrice')
-        if guncel_fiyat is None:
-            guncel_fiyat = fast_info.last_price # Yedek kanal
+        if guncel_fiyat is None: guncel_fiyat = fast_info.last_price
+        if guncel_fiyat is None: return None
 
-        if guncel_fiyat is None: return None # Fiyat yoksa işlem yapamayız
-
-        # Verileri "None" ise "0" yapma, "-" yap veya hesapla
         def guvenli_al(anahtar, varsayilan=0):
             deger = bilgi.get(anahtar)
             return varsayilan if deger is None else deger
 
         fk = guvenli_al('trailingPE', 0)
-        # Eğer F/K sıfır geldiyse ve EPS varsa, manuel hesapla
         if fk == 0:
             eps = guvenli_al('trailingEps', 0)
-            if eps != 0:
-                fk = guncel_fiyat / eps
+            if eps != 0: fk = guncel_fiyat / eps
 
         pd_dd = guvenli_al('priceToBook', 0)
         roe = guvenli_al('returnOnEquity', 0) * 100
         buyume = guvenli_al('revenueGrowth', 0) * 100
         
-        # Tarihsel Veri
         hist = hisse.history(period="1y")
         hist['RSI'] = rsi_hesapla(hist)
         son_rsi = hist['RSI'].iloc[-1]
         
-        # Değişim Hesapla
         onceki_kapanis = hist['Close'].iloc[-2]
         degisim = ((guncel_fiyat - onceki_kapanis) / onceki_kapanis) * 100
 
@@ -152,30 +168,23 @@ def veri_getir(sembol):
         puan = 0
         if roe > 30: puan += 30
         elif roe > 10: puan += 15
-        
         if 0 < fk < 10: puan += 30
         elif 10 <= fk < 20: puan += 15
-        
         if 30 <= son_rsi <= 70: puan += 20
-        
         if buyume > 20: puan += 20
-        elif buyume > 0: puan += 10
+        
+        # İngilizce Özeti çekiyoruz (AI çevirecek)
+        ozet = bilgi.get('longBusinessSummary', 'Şirket açıklaması bulunamadı.')
+        sektor = bilgi.get('sector', 'Bilinmiyor')
         
         return {
             'ad': bilgi.get('longName', sembol),
-            'fiyat': guncel_fiyat,
-            'fk': fk,
-            'pd_dd': pd_dd,
-            'roe': roe,
-            'buyume': buyume,
-            'rsi': son_rsi,
-            'degisim': degisim,
-            'puan': min(puan, 100),
-            'hist': hist
+            'fiyat': guncel_fiyat, 'fk': fk, 'pd_dd': pd_dd,
+            'roe': roe, 'buyume': buyume, 'rsi': son_rsi,
+            'degisim': degisim, 'puan': min(puan, 100),
+            'hist': hist, 'ozet': ozet, 'sektor': sektor
         }
-    except Exception as e:
-        print(f"Veri Hatası: {e}") # Konsola yaz
-        return None
+    except Exception as e: return None
 
 def metni_temizle(metin):
     metin = re.sub(r'[^\x00-\x7F\u00C0-\u00FF\u0100-\u017F\s.,;:!?()"\'-]', '', metin)
@@ -184,18 +193,19 @@ def metni_temizle(metin):
     return metin
 
 @st.cache_data(ttl=0, show_spinner=False)
-def ai_analiz(mod, veri1, veri2=None):
+def ai_analiz(veri):
     try:
-        if mod == 'TEK':
-            prompt = f"""
-            GÖREV: {veri1['ad']} hissesini Türkçe analiz et.
-            VERİLER: Fiyat: {veri1['fiyat']:.2f}, F/K: {veri1['fk']:.2f}, ROE: %{veri1['roe']:.1f}, Puan: {veri1['puan']}/100.
-            KURALLAR: Asla yabancı karakter kullanma. İstanbul Türkçesi ile, bir mentor gibi konuş. 
-            """
-        else:
-            prompt = f"""
-            GÖREV: {veri1['ad']} vs {veri2['ad']} kıyasla.
-            """
+        prompt = f"""
+        GÖREV: {veri['ad']} hissesini analiz et.
+        
+        1. KISIM: Şirketin İngilizce özetini ({veri['ozet'][:200]}...) temel alarak şirketin ne iş yaptığını 2 cümleyle Türkçe anlat.
+        2. KISIM: Verileri yorumla (Fiyat: {veri['fiyat']}, F/K: {veri['fk']:.2f}, ROE: %{veri['roe']:.1f}, Puan: {veri['puan']}/100).
+        
+        KURALLAR:
+        - Başlık kullanma, direkt paragrafla başla.
+        - Çok akıcı, hikaye anlatır gibi, Apple lansmanı tadında Türkçe konuş.
+        - Yabancı karakter kullanma.
+        """
         chat = client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
             model="llama-3.3-70b-versatile",
@@ -205,72 +215,81 @@ def ai_analiz(mod, veri1, veri2=None):
     except Exception as e: return f"AI Hatası: {str(e)}"
 
 # --- 6. ARAYÜZ ---
-c1, c2 = st.columns([1, 10])
-with c1: st.image("https://cdn-icons-png.flaticon.com/512/3281/3281306.png", width=60) # Siyah hedef ikonu
-with c2: 
-    st.markdown("<h1 style='margin-bottom:0; padding-bottom:0;'>ODAK AI</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #666; font-size: 16px;'>Akıllı Yatırım & Karar Destek Sistemi</p>", unsafe_allow_html=True)
-st.markdown("---")
-
-# Sidebar
-st.sidebar.markdown("### ⚙️ Kontrol Paneli")
+# Sidebar (Gizli gibi duran minimal sidebar)
+st.sidebar.markdown("###  ODAK")
 list_secenekler = [f"{k} - {v}" for k, v in BIST_SIRKETLERI.items()]
 secim1 = st.sidebar.selectbox("Hisse Seçiniz", list_secenekler, index=0)
 kod1 = secim1.split(" - ")[0] + ".IS"
+analyze_btn = st.sidebar.button("Analiz Et")
 
-if st.sidebar.button("ANALİZ ET"):
-    with st.spinner('ODAK motoru çalışıyor...'):
+if analyze_btn:
+    with st.spinner('Veriler işleniyor...'):
         data = veri_getir(kod1)
-        if not data:
-            st.error("Veri alınamadı. Borsa kapalı veya kaynakta sorun olabilir.")
-            st.stop()
-            
-        # --- ÜST KISIM: PUAN VE METRİKLER ---
-        col_score, col_metrics = st.columns([1, 3])
+        if not data: st.error("Veri alınamadı."); st.stop()
         
-        with col_score:
+        # --- BÖLÜM 1: HERO SECTION (Gecikme Yok) ---
+        # Burası direkt yüklenir, şirketin ihtişamını gösterir.
+        st.markdown(f"""
+        <div class='hero-container reveal-1'>
+            <div class='company-sector'>{data['sektor']}</div>
+            <div class='company-title'>{data['ad']}</div>
+            <div class='company-desc'>Hisse Fiyatı: <b>{data['fiyat']:.2f} ₺</b> <span style='color: {'#2ecc71' if data['degisim']>0 else '#e74c3c'}'>%{data['degisim']:.2f}</span></div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+
+        # --- BÖLÜM 2: KARNELER VE METRİKLER (Gecikmeli Gelir) ---
+        c_score, c_metrics = st.columns([1, 2])
+        
+        with c_score:
             renk = "#2ecc71" if data['puan'] >= 80 else ("#f1c40f" if data['puan'] >= 50 else "#e74c3c")
-            durum = "MÜKEMMEL" if data['puan'] >= 80 else ("İYİ / ORTA" if data['puan'] >= 50 else "ZAYIF")
-            
-            # F-Ray Siyah Kutu (Beyaz temada kontrast yaratır)
             st.markdown(f"""
-            <div class='score-box'>
-                <div class='score-label'>ODAK PUANI</div>
-                <div class='score-val'>{data['puan']}</div>
-                <div class='score-label' style='color:{renk}'>{durum}</div>
+            <div class='reveal-2'>
+                <div class='score-container'>
+                    <div style='font-size: 14px; opacity: 0.7; letter-spacing: 2px;'>F-RAY PUANI</div>
+                    <div style='font-size: 64px; font-weight: 700; margin: 10px 0;'>{data['puan']}</div>
+                    <div style='color: {renk}; font-weight: 600;'>{'MÜKEMMEL' if data['puan']>=80 else 'İYİ / ORTA'}</div>
+                </div>
             </div>
             """, unsafe_allow_html=True)
             
-        with col_metrics:
-            m1, m2, m3 = st.columns(3)
-            m1.metric("Fiyat", f"{data['fiyat']:.2f} ₺", f"%{data['degisim']:.2f}")
-            
-            # F/K 0 ise 'A/D' (Anlamlı Değil) yaz
-            fk_gosterim = f"{data['fk']:.2f}" if data['fk'] > 0 else "A/D"
-            m1.metric("F/K Oranı", fk_gosterim)
-            
-            m2.metric("ROE (Karlılık)", f"%{data['roe']:.1f}")
+        with c_metrics:
+            st.markdown("<div class='reveal-2'>", unsafe_allow_html=True)
+            m1, m2 = st.columns(2)
+            m1.metric("F/K Oranı", f"{data['fk']:.2f}")
+            m1.metric("ROE (Karlılık)", f"%{data['roe']:.1f}")
             m2.metric("Büyüme", f"%{data['buyume']:.1f}")
-            
-            m3.metric("RSI", f"{data['rsi']:.1f}")
-            m3.metric("PD/DD", f"{data['pd_dd']:.2f}")
+            m2.metric("RSI", f"{data['rsi']:.1f}")
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("---")
-        
-        # --- ALT KISIM: GRAFİK VE AI ---
-        g1, g2 = st.columns([2, 1])
-        
-        with g1:
-            st.markdown("#### 📉 Fiyat Grafiği")
-            fig = go.Figure()
-            fig.add_trace(go.Candlestick(x=data['hist'].index, open=data['hist']['Open'], 
-                                         high=data['hist']['High'], low=data['hist']['Low'], 
-                                         close=data['hist']['Close'], name=data['ad']))
-            # Grafik de açık renk olsun
-            fig.update_layout(height=400, template="plotly_white", margin=dict(t=20, b=0, l=0, r=0))
-            st.plotly_chart(fig, use_container_width=True)
-        
-        with g2:
-            st.markdown("#### 🧠 Analist Notu")
-            yorum = ai_analiz('TEK', data)
-            st.markdown(f"<div class='ai-box'>{yorum}</div>", unsafe_allow_html=True)
+        st.markdown("<br><br>", unsafe_allow_html=True)
+
+        # --- BÖLÜM 3: GRAFİK (Daha Geç Gelir) ---
+        st.markdown("<div class='reveal-3'>", unsafe_allow_html=True)
+        st.markdown("### 📉 Piyasa Hareketi")
+        fig = go.Figure()
+        fig.add_trace(go.Candlestick(x=data['hist'].index, open=data['hist']['Open'], 
+                                     high=data['hist']['High'], low=data['hist']['Low'], 
+                                     close=data['hist']['Close'], name=data['ad']))
+        fig.update_layout(height=400, template="plotly_white", margin=dict(t=20, b=0, l=0, r=0))
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        st.markdown("<br><br>", unsafe_allow_html=True)
+
+        # --- BÖLÜM 4: AI STORYTELLING (En Son Gelir) ---
+        st.markdown("<div class='reveal-4'>", unsafe_allow_html=True)
+        st.markdown("### 🧠 ODAK Görüşü")
+        yorum = ai_analiz(data)
+        st.markdown(f"<div class='ai-box'>{yorum}</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+else:
+    # Boş ekranda şık bir karşılama
+    st.markdown("""
+    <div style='text-align: center; padding-top: 100px;'>
+        <h1 style='color: #1D1D1F; font-size: 48px;'>Yatırımın Geleceği.</h1>
+        <p style='color: #86868B; font-size: 20px;'>Analiz etmek için sol menüden bir hisse seçin.</p>
+    </div>
+    """, unsafe_allow_html=True)
