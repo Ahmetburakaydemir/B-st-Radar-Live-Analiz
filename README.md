@@ -23,4 +23,4 @@ Geleneksel bilanço okuma süreçlerini otomatize etmek ve finansal verileri **"
 * **Görselleştirme:** Plotly & Matplotlib
 
 ---
-*Geliştirici: [Senin Adın] - Finans & Teknoloji Tutkunu*
+*Geliştirici: [Ahmet Burak Aydemir] - Finans & Teknoloji Tutkunu*
