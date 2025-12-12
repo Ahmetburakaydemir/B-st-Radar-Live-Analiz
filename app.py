@@ -3,6 +3,7 @@ import yfinance as yf
 import plotly.graph_objects as go
 from groq import Groq
 import re
+import numpy as np
 
 # --- 1. SAYFA AYARLARI ---
 st.set_page_config(page_title="ODAK | Life", page_icon="🎯", layout="wide")
@@ -26,13 +27,19 @@ st.markdown("""
     .flip-card-front { background: #FFF; color: #111; border: 1px solid #E5E5E5; }
     .flip-card-back { background: #1D1D1F; color: #FFF; transform: rotateY(180deg); }
     
-    /* HAYAT ENDEKSİ BARLARI */
-    .life-bar-container { background: #e0e0e0; border-radius: 25px; margin: 20px 0; height: 30px; width: 100%; position: relative; overflow: hidden; }
-    .life-bar-fill { height: 100%; border-radius: 25px; text-align: right; padding-right: 10px; color: white; font-weight: bold; line-height: 30px; transition: width 1s ease-in-out; }
-    .loss-msg { color: #c0392b; font-weight: bold; padding: 15px; background: rgba(192, 57, 43, 0.1); border-radius: 12px; border-left: 5px solid #c0392b; margin-top: 15px; font-size: 15px; }
-    .gain-msg { color: #27ae60; font-weight: bold; padding: 15px; background: rgba(39, 174, 96, 0.1); border-radius: 12px; border-left: 5px solid #27ae60; margin-top: 15px; font-size: 15px; }
+    /* TAHMİN KUTUSU (YENİ) */
+    .prediction-box {
+        background: linear-gradient(135deg, #2c3e50 0%, #000000 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 12px;
+        margin-top: 20px;
+        border-left: 5px solid #f1c40f;
+    }
     
     /* DİĞER */
+    .life-bar-container { background: #e0e0e0; border-radius: 25px; margin: 20px 0; height: 30px; width: 100%; position: relative; overflow: hidden; }
+    .life-bar-fill { height: 100%; border-radius: 25px; text-align: right; padding-right: 10px; color: white; font-weight: bold; line-height: 30px; transition: width 1s ease-in-out; }
     .hero-box { background: white; padding: 30px; border-radius: 16px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-bottom: 20px; }
     .score-card { background: #1D1D1F; color: white; padding: 25px; border-radius: 16px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
     .ai-card { background: #fff; border-left: 5px solid #111; padding: 25px; border-radius: 8px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); line-height: 1.6; }
@@ -72,7 +79,7 @@ try:
     client = Groq(api_key=api_key)
 except: st.error("API Key Hatası"); st.stop()
 
-# --- 5. VERİ MOTORU ---
+# --- 5. VERİ VE HESAPLAMA MOTORU ---
 def rsi_hesapla(data, window=14):
     try:
         delta = data['Close'].diff()
@@ -109,6 +116,11 @@ def veri_getir(sembol):
         onceki_kapanis = hist['Close'].iloc[-2]
         degisim = ((guncel_fiyat - onceki_kapanis) / onceki_kapanis) * 100
 
+        # ORTALAMA AYLIK GETİRİ HESABI (Tahmin İçin)
+        # Basitçe: (Son Fiyat - İlk Fiyat) / İlk Fiyat
+        yillik_getiri = ((hist['Close'].iloc[-1] - hist['Close'].iloc[0]) / hist['Close'].iloc[0])
+        aylik_ort_getiri = yillik_getiri / 12
+
         puan = 0
         if roe > 30: puan += 30
         elif roe > 10: puan += 15
@@ -121,7 +133,8 @@ def veri_getir(sembol):
             'ad': bilgi.get('longName', sembol), 'sektor': bilgi.get('sector', 'BIST'),
             'ozet': bilgi.get('longBusinessSummary', ''), 'fiyat': guncel_fiyat, 
             'degisim': degisim, 'fk': fk, 'pd_dd': pd_dd, 'roe': roe, 'buyume': buyume,
-            'rsi': son_rsi, 'puan': min(puan, 100), 'hist': hist
+            'rsi': son_rsi, 'puan': min(puan, 100), 'hist': hist,
+            'aylik_getiri': aylik_ort_getiri
         }
     except: return None
 
@@ -149,11 +162,9 @@ def create_card(t, v, ft, fd):
 # --- 6. ARAYÜZ ---
 st.sidebar.markdown("### 🎯 ODAK")
 
-# --- HAFIZA MEKANİZMASI (SESSION STATE) ---
 if 'analiz_aktif' not in st.session_state:
     st.session_state.analiz_aktif = False
 
-# MOD SEÇİMİ
 mod = st.sidebar.radio("MOD SEÇİNİZ", ["📊 ANALİZ MODU", "🧬 HAYAT ENDEKSİ"])
 st.sidebar.markdown("---")
 
@@ -162,17 +173,13 @@ secim1 = st.sidebar.selectbox("Hisse Seçiniz", list_secenekler, index=0)
 kod1 = secim1.split(" - ")[0] + ".IS"
 analyze_btn = st.sidebar.button("BAŞLAT")
 
-# Butona basılınca hafızayı aktif et
 if analyze_btn:
     st.session_state.analiz_aktif = True
 
-# --- EĞER HAFIZA AKTİFSE SAYFAYI GÖSTER ---
 if st.session_state.analiz_aktif:
-    # Veriyi çek (Cache kullandığı için hızlıdır)
     data = veri_getir(kod1)
     
     if data:
-        # HERO (Her iki modda da görünür)
         st.markdown(f"""
         <div class='hero-box'>
             <div style='color:#888; font-size:12px; letter-spacing:2px;'>{data['sektor']}</div>
@@ -186,7 +193,6 @@ if st.session_state.analiz_aktif:
         </div>
         """, unsafe_allow_html=True)
 
-        # --- MOD 1: KLASİK ANALİZ ---
         if mod == "📊 ANALİZ MODU":
             c1, c2 = st.columns([1, 3])
             with c1:
@@ -215,11 +221,9 @@ if st.session_state.analiz_aktif:
                 yorum = ai_analiz(data)
                 st.markdown(f"<div class='ai-card'>{yorum}</div>", unsafe_allow_html=True)
 
-        # --- MOD 2: HAYAT ENDEKSİ ---
         else:
-            st.markdown("### 🧬 Hayat Endeksi Simülasyonu")
+            st.markdown("### 🧬 Gelecek Simülasyonu")
             
-            # Hedef Seçimi (Sayfa yenilense bile hafıza sayesinde burası çalışacak)
             col_in1, col_in2 = st.columns(2)
             with col_in1:
                 secilen_hedef = st.selectbox("🎯 HEDEFİNİZ NEDİR?", list(HEDEFLER.keys()))
@@ -230,13 +234,12 @@ if st.session_state.analiz_aktif:
             hedef_fiyat = hedef_detay["fiyat"]
             portfoy_degeri = lot_sayisi * data['fiyat']
             
-            # Hesaplamalar
             tamamlanma_orani = min((portfoy_degeri / hedef_fiyat) * 100, 100)
-            gereken_lot = max(0, (hedef_fiyat - portfoy_degeri) / data['fiyat'])
+            gereken_tutar = max(0, hedef_fiyat - portfoy_degeri)
+            gereken_lot = max(0, gereken_tutar / data['fiyat'])
             
             # GÖRSELLEŞTİRME
             c1, c2 = st.columns([1, 1])
-            
             with c1:
                 st.markdown(f"""
                 <div style='background:white; padding:30px; border-radius:16px; border:1px solid #eee; text-align:center; box-shadow: 0 4px 20px rgba(0,0,0,0.05);'>
@@ -245,7 +248,6 @@ if st.session_state.analiz_aktif:
                     <div style='font-size:18px; color:#666; margin-top:5px;'>Hedef Fiyat: <b>{hedef_fiyat:,.0f} ₺</b></div>
                 </div>
                 """, unsafe_allow_html=True)
-            
             with c2:
                 st.markdown(f"""
                 <div style='background:#1D1D1F; color:white; padding:30px; border-radius:16px; text-align:center; height:100%; display:flex; flex-direction:column; justify-content:center; box-shadow: 0 10px 30px rgba(0,0,0,0.15);'>
@@ -255,12 +257,12 @@ if st.session_state.analiz_aktif:
                 </div>
                 """, unsafe_allow_html=True)
 
-            # PROGRESS BAR
+            # BAR
             renk_bar = "#27ae60" if tamamlanma_orani == 100 else "#3498db"
             st.markdown(f"""
             <div style='margin-top:30px; background:white; padding:20px; border-radius:16px; border:1px solid #eee;'>
                 <div style='display:flex; justify-content:space-between; font-weight:bold; margin-bottom:10px; color:#333;'>
-                    <span>Hedefe Uzaklık</span>
+                    <span>İlerleme Durumu</span>
                     <span>%{tamamlanma_orani:.1f}</span>
                 </div>
                 <div class='life-bar-container'>
@@ -270,26 +272,35 @@ if st.session_state.analiz_aktif:
                 </div>
             </div>
             """, unsafe_allow_html=True)
-            
-            # TERSİNE ÇEVİRME MODU
-            gunluk_kazanc_tl = (portfoy_degeri * data['degisim']) / 100
-            
-            if gunluk_kazanc_tl < 0:
+
+            # --- TAHMİN MOTORU (YENİ ÖZELLİK) ---
+            if tamamlanma_orani < 100:
+                aylik_getiri = data['aylik_getiri']
+                
+                if aylik_getiri > 0:
+                    # Kaç ayda tamamlanır formülü: (Hedef / Mevcut) logaritması
+                    # Basit hesap: Kalan tutar / (Mevcut * Aylık Getiri)
+                    if portfoy_degeri > 0:
+                        ay_sayisi = np.log(hedef_fiyat / portfoy_degeri) / np.log(1 + aylik_getiri)
+                        tahmin_yil = int(ay_sayisi // 12)
+                        tahmin_ay = int(ay_sayisi % 12)
+                        
+                        tahmin_metni = f"Bu hisse geçmiş performansını (%{aylik_getiri*100:.1f} Aylık Getiri) sürdürürse, hedefine yaklaşık <b>{tahmin_yil} Yıl {tahmin_ay} Ay</b> sonra ulaşabilirsin."
+                    else:
+                        tahmin_metni = "Henüz portföyün boş. Başlamak için hisse alman lazım."
+                else:
+                    tahmin_metni = "⚠️ Bu hissenin son 1 yıllık performansı negatif. Hedefe ulaşmak zor olabilir, stratejini gözden geçir."
+
                 st.markdown(f"""
-                <div class='loss-msg'>
-                    ⚠️ <b>DİKKAT:</b> Bugün hissendeki düşüş (%{data['degisim']:.2f}) yüzünden, hedefine giden yolda 
-                    <b>{abs(gunluk_kazanc_tl):.0f} TL</b> eridi. 
-                    Bu, hedeften yaklaşık <b>{(abs(gunluk_kazanc_tl)/hedef_fiyat)*100:.2f}%</b> uzaklaştığın anlamına geliyor.
+                <div class='prediction-box'>
+                    <div style='font-size:18px; font-weight:bold; margin-bottom:10px;'>🔮 Gelecek Tahmini</div>
+                    <div style='font-size:15px; opacity:0.9;'>{tahmin_metni}</div>
+                    <div style='font-size:11px; margin-top:10px; opacity:0.6;'>(Bu sadece matematiksel bir simülasyondur, yatırım tavsiyesi değildir.)</div>
                 </div>
                 """, unsafe_allow_html=True)
             else:
-                st.markdown(f"""
-                <div class='gain-msg'>
-                    🚀 <b>HARİKA:</b> Bugün hissendeki yükseliş (%{data['degisim']:.2f}) sayesinde, hedefine 
-                    <b>{gunluk_kazanc_tl:.0f} TL</b> daha yaklaştın! 
-                    Böyle giderse hedefe beklenenden erken ulaşabilirsin.
-                </div>
-                """, unsafe_allow_html=True)
+                st.balloons()
+                st.success("🎉 TEBRİKLER! Hedefine ulaştın. Finansal özgürlüğün tadını çıkar.")
 
     else: st.warning("Veri Yok.")
 else:
