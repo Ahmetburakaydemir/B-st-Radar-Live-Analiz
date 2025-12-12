@@ -5,110 +5,42 @@ from groq import Groq
 import re
 
 # --- 1. SAYFA AYARLARI ---
-st.set_page_config(
-    page_title="ODAK | Master",
-    page_icon="🎯",
-    layout="wide"
-)
+st.set_page_config(page_title="ODAK | Life", page_icon="🎯", layout="wide")
 
-# --- 2. CSS: FLIP CARD & PIANO WHITE ---
+# --- 2. CSS: PIANO WHITE + GAMIFICATION ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+    .stApp { background-color: #F8F9FA; color: #111; font-family: 'Inter', sans-serif; }
     
-    .stApp {
-        background-color: #F8F9FA;
-        color: #111;
-        font-family: 'Inter', sans-serif;
-    }
-
     /* SIDEBAR */
     section[data-testid="stSidebar"] { background-color: #8B0000 !important; }
     section[data-testid="stSidebar"] * { color: #FFFFFF !important; }
-    div[data-testid="stSidebar"] .stButton > button {
-        background-color: white !important; color: #8B0000 !important; font-weight: 800 !important; border: none;
-    }
+    div[data-testid="stSidebar"] .stButton > button { background: white !important; color: #8B0000 !important; font-weight:800; border:none; }
 
-    /* --- FLIP CARD (DÖNEN KART) CSS SİHRİ --- */
-    .flip-card {
-        background-color: transparent;
-        width: 100%;
-        height: 140px; /* Kart Yüksekliği */
-        perspective: 1000px; /* 3D derinlik etkisi */
-        margin-bottom: 15px;
-        cursor: pointer;
-    }
-
-    .flip-card-inner {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        text-align: center;
-        transition: transform 0.6s;
-        transform-style: preserve-3d;
-        box-shadow: 0 4px 8px 0 rgba(0,0,0,0.1);
-        border-radius: 16px;
-    }
-
-    /* Tıklanınca (Javascript ile class eklenecek) veya üzerine gelince dönmesi için */
-    .flip-card:active .flip-card-inner,
-    .flip-card.flipped .flip-card-inner {
-        transform: rotateY(180deg);
-    }
-
-    /* Ön ve Arka Yüz Ortak Ayarlar */
-    .flip-card-front, .flip-card-back {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        -webkit-backface-visibility: hidden;
-        backface-visibility: hidden;
-        border-radius: 16px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        padding: 10px;
-    }
-
-    /* ÖN YÜZ (Veri) - Beyaz */
-    .flip-card-front {
-        background-color: #FFFFFF;
-        color: black;
-        border: 1px solid #E5E5E5;
-    }
-
-    /* ARKA YÜZ (Formül) - Siyah */
-    .flip-card-back {
-        background-color: #1D1D1F;
-        color: white;
-        transform: rotateY(180deg);
-        border: 1px solid #333;
-    }
-
-    /* Kart İçi Yazı Stilleri */
-    .card-title { font-size: 13px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
-    .card-value { font-size: 28px; font-weight: 800; color: #111; margin-top: 5px; }
-    .card-formula { font-size: 14px; color: #FFD700; font-weight: bold; margin-bottom: 5px; }
-    .card-desc { font-size: 12px; color: #ccc; line-height: 1.4; }
-
-    /* DİĞER KUTULAR */
-    .hero-box { background: white; padding: 30px; border-radius: 16px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-bottom: 20px;}
-    .company-name { font-size: 42px; font-weight: 800; color: #111; margin: 0; }
-    .score-card { background: #1D1D1F; color: white; padding: 25px; border-radius: 16px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.15); height: 140px; display: flex; flex-direction: column; justify-content: center;}
-    .ai-card { background: #fff; border-left: 5px solid #111; padding: 25px; border-radius: 8px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); color: #333; line-height: 1.6; }
-
-    </style>
+    /* FLIP CARD */
+    .flip-card { background: transparent; width: 100%; height: 140px; perspective: 1000px; margin-bottom: 15px; cursor: pointer; }
+    .flip-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 16px; }
+    .flip-card:active .flip-card-inner, .flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
+    .flip-card-front, .flip-card-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 16px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px; }
+    .flip-card-front { background: #FFF; color: #111; border: 1px solid #E5E5E5; }
+    .flip-card-back { background: #1D1D1F; color: #FFF; transform: rotateY(180deg); }
     
-    <script>
-    // Kartlara tıklanınca 'flipped' class'ını ekleyip çıkaran basit JS
-    function flipCard(element) {
-        element.classList.toggle("flipped");
-    }
-    </script>
+    /* HAYAT ENDEKSİ BARLARI */
+    .life-bar-container { background: #e0e0e0; border-radius: 25px; margin: 20px 0; height: 30px; width: 100%; position: relative; overflow: hidden; }
+    .life-bar-fill { height: 100%; border-radius: 25px; text-align: right; padding-right: 10px; color: white; font-weight: bold; line-height: 30px; transition: width 1s ease-in-out; }
+    .loss-msg { color: #c0392b; font-weight: bold; padding: 10px; background: rgba(192, 57, 43, 0.1); border-radius: 8px; border-left: 4px solid #c0392b; margin-top: 10px; }
+    .gain-msg { color: #27ae60; font-weight: bold; padding: 10px; background: rgba(39, 174, 96, 0.1); border-radius: 8px; border-left: 4px solid #27ae60; margin-top: 10px; }
+    
+    /* DİĞER */
+    .hero-box { background: white; padding: 30px; border-radius: 16px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-bottom: 20px; }
+    .score-card { background: #1D1D1F; color: white; padding: 25px; border-radius: 16px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
+    .ai-card { background: #fff; border-left: 5px solid #111; padding: 25px; border-radius: 8px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); line-height: 1.6; }
+    </style>
+    <script>function flipCard(e){e.classList.toggle("flipped")}</script>
     """, unsafe_allow_html=True)
 
-# --- 3. LİSTE ---
+# --- 3. LİSTE & ÜRÜN KATALOĞU (GAMIFICATION) ---
 BIST_SIRKETLERI = {
     "THYAO": "TÜRK HAVA YOLLARI", "GARAN": "GARANTİ BBVA", "ASELS": "ASELSAN",
     "EREGL": "EREĞLİ DEMİR ÇELİK", "TUPRS": "TÜPRAŞ", "SISE": "ŞİŞECAM",
@@ -122,13 +54,26 @@ BIST_SIRKETLERI = {
     "EKGYO": "EMLAK KONUT", "MGROS": "MİGROS", "DOAS": "DOĞUŞ OTOMOTİV"
 }
 
+# Türkiye Şartlarında Tetikleyici Hedefler
+HEDEFLER = {
+    "☕ Starbucks Kahve": {"fiyat": 120, "ikon": "☕"},
+    "🍔 Big Mac Menü": {"fiyat": 250, "ikon": "🍔"},
+    "🎧 AirPods Pro 2": {"fiyat": 9000, "ikon": "🎧"},
+    "✈️ Yurt Dışı Uçak Bileti": {"fiyat": 15000, "ikon": "✈️"},
+    "📱 iPhone 16 Pro": {"fiyat": 85000, "ikon": "📱"},
+    "💻 MacBook Air": {"fiyat": 45000, "ikon": "💻"},
+    "🏍️ Vespa Motosiklet": {"fiyat": 250000, "ikon": "🏍️"},
+    "🚗 Togg T10X": {"fiyat": 1400000, "ikon": "🚗"},
+    "🏠 1+1 Ev Peşinatı": {"fiyat": 2000000, "ikon": "🏠"}
+}
+
 # --- 4. API ---
 try:
     api_key = st.secrets["GROQ_API_KEY"]
     client = Groq(api_key=api_key)
 except: st.error("API Key Hatası"); st.stop()
 
-# --- 5. VERİ VE HESAPLAMA ---
+# --- 5. FONKSİYONLAR ---
 def rsi_hesapla(data, window=14):
     try:
         delta = data['Close'].diff()
@@ -154,45 +99,36 @@ def veri_getir(sembol):
             return default
 
         fk = guvenli(['trailingPE', 'forwardPE'])
-        if fk == 0:
-            eps = guvenli(['trailingEps'])
-            if eps != 0: fk = guncel_fiyat / eps
-
+        if fk == 0 and guvenli(['trailingEps']) != 0: fk = guncel_fiyat / guvenli(['trailingEps'])
+        
         pd_dd = guvenli(['priceToBook'])
         roe = guvenli(['returnOnEquity']) * 100
         buyume = guvenli(['revenueGrowth']) * 100
         
         hist['RSI'] = rsi_hesapla(hist)
         son_rsi = hist['RSI'].iloc[-1]
-        
         onceki_kapanis = hist['Close'].iloc[-2]
         degisim = ((guncel_fiyat - onceki_kapanis) / onceki_kapanis) * 100
 
         puan = 0
         if roe > 30: puan += 30
         elif roe > 10: puan += 15
-        elif roe > 0: puan += 10
-        
-        if 0 < fk < 10: puan += 30
-        elif 10 <= fk < 20: puan += 15
-        
+        if 0 < fk < 12: puan += 30
+        elif 12 <= fk < 20: puan += 15
         if 30 <= son_rsi <= 70: puan += 20
         if buyume > 20: puan += 20
-        elif buyume > 0: puan += 10
-        
+
         return {
-            'ad': bilgi.get('longName', sembol),
-            'sektor': bilgi.get('sector', 'BIST'),
-            'ozet': bilgi.get('longBusinessSummary', ''),
-            'fiyat': guncel_fiyat, 'degisim': degisim,
-            'fk': fk, 'pd_dd': pd_dd, 'roe': roe, 'buyume': buyume,
+            'ad': bilgi.get('longName', sembol), 'sektor': bilgi.get('sector', 'BIST'),
+            'ozet': bilgi.get('longBusinessSummary', ''), 'fiyat': guncel_fiyat, 
+            'degisim': degisim, 'fk': fk, 'pd_dd': pd_dd, 'roe': roe, 'buyume': buyume,
             'rsi': son_rsi, 'puan': min(puan, 100), 'hist': hist
         }
     except: return None
 
 def metni_temizle(metin):
     metin = re.sub(r'[^\x00-\x7F\u00C0-\u00FF\u0100-\u017F\s.,;:!?()"\'-]', '', metin)
-    yasakli = ["approximately", "slightly", "doing", "trading", "However", "overall"]
+    yasakli = ["approximately", "slightly", "doing", "trading", "However"]
     for k in yasakli: metin = metin.replace(k, "").replace(k.lower(), "")
     return metin
 
@@ -200,53 +136,36 @@ def metni_temizle(metin):
 def ai_analiz(veri):
     try:
         prompt = f"""
-        Rol: Kıdemli Finansal Mentor. Dil: Türkçe.
-        Hisse: {veri['ad']}. Fiyat: {veri['fiyat']:.2f}, F/K: {veri['fk']:.2f}, ROE: %{veri['roe']:.1f}, Puan: {veri['puan']}.
-        Özet: {veri['ozet'][:150]}...
-        Görev: Şirketi kısaca tanıt. Risk ve fırsatları anlat.
+        Rol: Mentor. Dil: Türkçe. Hisse: {veri['ad']}. 
+        Veriler: F/K {veri['fk']:.2f}, ROE %{veri['roe']:.1f}, Puan {veri['puan']}.
+        Görev: Şirketi kısaca anlat. Risk ve fırsatları yorumla.
         """
-        chat = client.chat.completions.create(
-            messages=[{"role": "user", "content": prompt}],
-            model="llama-3.3-70b-versatile",
-            temperature=0.1
-        )
+        chat = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile", temperature=0.1)
         return metni_temizle(chat.choices[0].message.content)
-    except: return "Analiz oluşturulamadı."
+    except: return "Analiz yok."
 
-# --- HTML KART OLUŞTURUCU (FLIP CARD) ---
-def create_card(title, value, formula_title, formula_desc):
-    return f"""
-    <div class="flip-card" onclick="this.classList.toggle('flipped')">
-      <div class="flip-card-inner">
-        <div class="flip-card-front">
-          <div class="card-title">{title}</div>
-          <div class="card-value">{value}</div>
-          <div style="font-size:10px; color:#999; margin-top:5px;">(Çevirmek için tıkla 👆)</div>
-        </div>
-        <div class="flip-card-back">
-          <div class="card-formula">{formula_title}</div>
-          <div class="card-desc">{formula_desc}</div>
-        </div>
-      </div>
-    </div>
-    """
+# --- HTML KART ---
+def create_card(t, v, ft, fd):
+    return f"""<div class="flip-card" onclick="this.classList.toggle('flipped')"><div class="flip-card-inner"><div class="flip-card-front"><div class="card-title">{t}</div><div class="card-value">{v}</div><div style="font-size:10px; color:#999;">(Çevir 👆)</div></div><div class="flip-card-back"><div class="card-formula">{ft}</div><div class="card-desc">{fd}</div></div></div></div>"""
 
 # --- 6. ARAYÜZ ---
 st.sidebar.markdown("### 🎯 ODAK")
-secim1 = st.sidebar.selectbox("Hisse Seçiniz", [f"{k} - {v}" for k, v in BIST_SIRKETLERI.items()])
-kod1 = secim1.split(" - ")[0] + ".IS"
-analyze_btn = st.sidebar.button("ANALİZ ET")
 
+# MOD SEÇİMİ
+mod = st.sidebar.radio("MOD SEÇİNİZ", ["📊 ANALİZ MODU", "🧬 HAYAT ENDEKSİ"])
 st.sidebar.markdown("---")
-with st.sidebar.expander("Nasıl Kullanılır?"):
-    st.info("Kutuların üzerine tıklayarak formüllerini görebilirsiniz.")
+
+list_secenekler = [f"{k} - {v}" for k, v in BIST_SIRKETLERI.items()]
+secim1 = st.sidebar.selectbox("Hisse Seçiniz", list_secenekler, index=0)
+kod1 = secim1.split(" - ")[0] + ".IS"
+analyze_btn = st.sidebar.button("BAŞLAT")
 
 if analyze_btn:
-    with st.spinner('ODAK motoru çalışıyor...'):
+    with st.spinner('Veriler işleniyor...'):
         data = veri_getir(kod1)
         
         if data:
-            # HERO
+            # HERO (Her iki modda da görünür)
             st.markdown(f"""
             <div class='hero-box'>
                 <div style='color:#888; font-size:12px; letter-spacing:2px;'>{data['sektor']}</div>
@@ -259,78 +178,113 @@ if analyze_btn:
                 </div>
             </div>
             """, unsafe_allow_html=True)
-            
-            # KARTLAR VE PUAN
-            col_score, col_metrics = st.columns([1, 3])
-            
-            with col_score:
-                renk = "#27ae60" if data['puan'] >= 80 else ("#f1c40f" if data['puan'] >= 50 else "#e74c3c")
-                durum = "MÜKEMMEL" if data['puan'] >= 80 else ("İYİ / ORTA" if data['puan'] >= 50 else "RİSKLİ")
-                st.markdown(f"""
-                <div class='score-card'>
-                    <div style='font-size:12px; opacity:0.7;'>SAĞLIK PUANI</div>
-                    <div style='font-size:64px; font-weight:800; line-height:1;'>{data['puan']}</div>
-                    <div style='color:{renk}; margin-top:10px; font-weight:bold;'>{durum}</div>
-                </div>
-                """, unsafe_allow_html=True)
 
-            with col_metrics:
-                # Verileri Hazırla
-                fk_val = f"{data['fk']:.2f}" if data['fk'] > 0 else "-"
-                roe_val = f"%{data['roe']:.1f}" if data['roe'] != 0 else "-"
-                buyume_val = f"%{data['buyume']:.1f}" if data['buyume'] != 0 else "-"
-                rsi_val = f"{data['rsi']:.1f}"
-
-                # Kartları HTML Olarak Oluştur (Grid Yapısı)
-                c1, c2 = st.columns(2)
-                
+            # --- MOD 1: KLASİK ANALİZ ---
+            if mod == "📊 ANALİZ MODU":
+                c1, c2 = st.columns([1, 3])
                 with c1:
-                    # F/K KARTI
-                    st.markdown(create_card(
-                        "F/K ORANI", fk_val, 
-                        "Fiyat / Hisse Başı Kar", 
-                        "Şirkete yatırdığın parayı kaç yılda geri alacağını gösterir. Düşük olması (0-10) ucuzluk belirtisidir."
-                    ), unsafe_allow_html=True)
-                    
-                    # BÜYÜME KARTI
-                    st.markdown(create_card(
-                        "BÜYÜME (Yıllık)", buyume_val,
-                        "(Bu Yıl - Geçen Yıl) / Geçen Yıl",
-                        "Şirketin cirosunun geçen seneye göre ne kadar arttığını gösterir."
-                    ), unsafe_allow_html=True)
+                    renk = "#27ae60" if data['puan'] >= 80 else ("#f1c40f" if data['puan'] >= 50 else "#e74c3c")
+                    durum = "MÜKEMMEL" if data['puan'] >= 80 else ("İYİ" if data['puan'] >= 50 else "RİSKLİ")
+                    st.markdown(f"""<div class='score-card'><div style='font-size:12px; opacity:0.7;'>SAĞLIK PUANI</div><div style='font-size:64px; font-weight:800;'>{data['puan']}</div><div style='color:{renk}; font-weight:bold;'>{durum}</div></div>""", unsafe_allow_html=True)
 
                 with c2:
-                    # ROE KARTI
-                    st.markdown(create_card(
-                        "ROE (Karlılık)", roe_val,
-                        "Net Kar / Özkaynaklar",
-                        "Şirketin ortakların parasını ne kadar verimli kullandığını gösterir. %30 üstü harikadır."
-                    ), unsafe_allow_html=True)
+                    k1, k2 = st.columns(2)
+                    with k1:
+                        st.markdown(create_card("F/K ORANI", f"{data['fk']:.2f}" if data['fk']>0 else "-", "Fiyat / Hisse Başı Kar", "Paranızı kaç yılda amorti edersiniz?"), unsafe_allow_html=True)
+                        st.markdown(create_card("BÜYÜME", f"%{data['buyume']:.1f}", "Ciro Artışı", "Geçen yıla göre ne kadar büyüdü?"), unsafe_allow_html=True)
+                    with k2:
+                        st.markdown(create_card("ROE (Karlılık)", f"%{data['roe']:.1f}", "Net Kar / Özkaynak", "Sermaye verimliliği. %30 üstü harikadır."), unsafe_allow_html=True)
+                        st.markdown(create_card("RSI", f"{data['rsi']:.1f}", "Güç Endeksi", "30 altı ucuz, 70 üstü pahalı."), unsafe_allow_html=True)
 
-                    # RSI KARTI
-                    st.markdown(create_card(
-                        "RSI (Teknik)", rsi_val,
-                        "Güç Endeksi Formülü",
-                        "Hisseye olan talebi ölçer. 30 altı 'Ucuz', 70 üstü 'Pahalı' sinyali verebilir."
-                    ), unsafe_allow_html=True)
+                st.markdown("---")
+                g1, g2 = st.columns([2, 1])
+                with g1:
+                    st.markdown("### 📉 Teknik Analiz")
+                    fig = go.Figure(data=[go.Candlestick(x=data['hist'].index, open=data['hist']['Open'], high=data['hist']['High'], low=data['hist']['Low'], close=data['hist']['Close'])])
+                    fig.update_layout(height=400, template="plotly_white", margin=dict(t=10,b=0,l=0,r=0))
+                    st.plotly_chart(fig, use_container_width=True)
+                with g2:
+                    st.markdown("### 🧠 ODAK Görüşü")
+                    yorum = ai_analiz(data)
+                    st.markdown(f"<div class='ai-card'>{yorum}</div>", unsafe_allow_html=True)
 
-            # GRAFİK & AI
-            st.markdown("---")
-            g1, g2 = st.columns([2, 1])
-            with g1:
-                st.markdown("### 📉 Teknik Analiz")
-                fig = go.Figure(data=[go.Candlestick(x=data['hist'].index, open=data['hist']['Open'], 
-                                high=data['hist']['High'], low=data['hist']['Low'], close=data['hist']['Close'])])
-                fig.update_layout(height=400, template="plotly_white", margin=dict(t=10,b=0,l=0,r=0))
-                st.plotly_chart(fig, use_container_width=True)
-            
-            with g2:
-                st.markdown("### 🧠 ODAK Görüşü")
-                yorum = ai_analiz(data)
-                st.markdown(f"<div class='ai-card'>{yorum}</div>", unsafe_allow_html=True)
+            # --- MOD 2: HAYAT ENDEKSİ (YENİ!) ---
+            else:
+                st.markdown("### 🧬 Hayat Endeksi Simülasyonu")
+                st.info("Bu mod, paranızın 'Alım Gücünü' ölçer. Bir hedef seçin ve hissenizin bu hedefe ne kadar yaklaştığını görün.")
+                
+                # Hedef Seçimi
+                secilen_hedef = st.selectbox("🎯 HEDEFİNİZ NEDİR?", list(HEDEFLER.keys()))
+                hedef_detay = HEDEFLER[secilen_hedef]
+                hedef_fiyat = hedef_detay["fiyat"]
+                
+                # Portföy Simülasyonu (Kullanıcı kaç lotu olduğunu girer veya varsayılan 1000 lot)
+                lot_sayisi = st.number_input("Kaç Adet Hisseniz Var?", min_value=1, value=100, step=10)
+                portfoy_degeri = lot_sayisi * data['fiyat']
+                
+                # Hesaplamalar
+                tamamlanma_orani = min((portfoy_degeri / hedef_fiyat) * 100, 100)
+                gereken_lot = max(0, (hedef_fiyat - portfoy_degeri) / data['fiyat'])
+                
+                # GÖRSELLEŞTİRME
+                c1, c2 = st.columns([1, 1])
+                
+                with c1:
+                    st.markdown(f"""
+                    <div style='background:white; padding:20px; border-radius:12px; border:1px solid #eee; text-align:center;'>
+                        <div style='font-size:60px;'>{hedef_detay['ikon']}</div>
+                        <div style='font-size:24px; font-weight:bold;'>{secilen_hedef}</div>
+                        <div style='font-size:18px; color:#666;'>Hedef Fiyat: {hedef_fiyat:,} ₺</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with c2:
+                    st.markdown(f"""
+                    <div style='background:#1D1D1F; color:white; padding:20px; border-radius:12px; text-align:center; height:100%; display:flex; flex-direction:column; justify-content:center;'>
+                        <div style='font-size:14px; opacity:0.7;'>MEVCUT GÜCÜNÜZ</div>
+                        <div style='font-size:36px; font-weight:bold;'>{portfoy_degeri:,.0f} ₺</div>
+                        <div style='font-size:16px; margin-top:10px;'>Hedefe Ulaşmak İçin: <b style='color:#f1c40f'>{gereken_lot:,.0f}</b> Lot Daha Lazım</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-        else:
-            st.warning("Veri alınamadı.")
+                # PROGRESS BAR (LEGO MANTIĞI)
+                renk_bar = "#27ae60" if tamamlanma_orani == 100 else "#3498db"
+                st.markdown(f"""
+                <div style='margin-top:20px;'>
+                    <div style='display:flex; justify-content:space-between; font-weight:bold; margin-bottom:5px;'>
+                        <span>İlerleme Durumu</span>
+                        <span>%{tamamlanma_orani:.1f}</span>
+                    </div>
+                    <div class='life-bar-container'>
+                        <div class='life-bar-fill' style='width: {tamamlanma_orani}%; background-color: {renk_bar};'>
+                            {hedef_detay['ikon']}
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # TERSİNE ÇEVİRME MODU (KAYIP/KAZANÇ)
+                gunluk_kazanc_tl = (portfoy_degeri * data['degisim']) / 100
+                
+                if gunluk_kazanc_tl < 0:
+                    # Kayıp Senaryosu
+                    st.markdown(f"""
+                    <div class='loss-msg'>
+                        ⚠️ <b>DİKKAT:</b> Bugün hissendeki düşüş (%{data['degisim']:.2f}) yüzünden, hedefine giden yolda 
+                        <b>{abs(gunluk_kazanc_tl):.0f} TL</b> kaybettin. 
+                        Bu, hedefinden yaklaşık <b>{(abs(gunluk_kazanc_tl)/hedef_fiyat)*100:.2f}%</b> uzaklaştığın anlamına geliyor.
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    # Kazanç Senaryosu
+                    st.markdown(f"""
+                    <div class='gain-msg'>
+                        🚀 <b>HARİKA:</b> Bugün hissendeki yükseliş (%{data['degisim']:.2f}) sayesinde, hedefine 
+                        <b>{gunluk_kazanc_tl:.0f} TL</b> daha yaklaştın! 
+                        Bu hızla gidersen hedef artık hayal değil.
+                    </div>
+                    """, unsafe_allow_html=True)
+
+        else: st.warning("Veri Yok.")
 else:
-    st.markdown("<br><br><h1 style='text-align:center;'>🎯 ODAK</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; color:#666;'>Analiz için sol menüden hisse seçin.</p>", unsafe_allow_html=True)
+    st.markdown("<br><br><h1 style='text-align:center;'>🎯 ODAK</h1><p style='text-align:center;'>Mod seçin ve analize başlayın.</p>", unsafe_allow_html=True)
