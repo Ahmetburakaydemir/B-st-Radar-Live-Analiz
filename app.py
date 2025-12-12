@@ -179,6 +179,7 @@ if analyze_btn:
 if st.session_state.analiz_aktif:
     data = veri_getir(kod1)
     
+    
     if data:
         st.markdown(f"""
         <div class='hero-box'>
